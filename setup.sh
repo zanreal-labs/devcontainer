@@ -16,11 +16,14 @@ if [ -d "$HOME/.gemini" ]; then
   sudo chown -R vscode:vscode "$HOME/.gemini"
 fi
 
-# ── Node modules volume ownership ───────────────────────────────────────────
+# ── Volume ownership ────────────────────────────────────────────────────────
+# Docker volumes are created as root — fix ownership for all mounted volumes
+echo "==> Fixing volume ownership..."
 if [ -d "node_modules" ]; then
-  echo "==> Fixing node_modules volume ownership..."
   sudo chown vscode:vscode node_modules
 fi
+# Fix .next directories (anonymous volume mounts)
+find . -maxdepth 3 -name ".next" -type d -exec sudo chown -R vscode:vscode {} \; 2>/dev/null || true
 
 # ── Package manager setup & install ─────────────────────────────────────────
 if [ -f "pnpm-lock.yaml" ]; then
