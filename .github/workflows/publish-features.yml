@@ -9,7 +9,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -26,3 +26,5 @@ jobs:
           publish-features: true
           base-path-to-features: ./src
           generate-docs: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
