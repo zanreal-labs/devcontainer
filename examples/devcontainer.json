@@ -1,0 +1,79 @@
+{
+  "name": "My Project",
+
+  // ── Image ─────────────────────────────────────────────────────────────────
+  // Option A: Use the prebuilt image from GHCR
+  "image": "ghcr.io/zanreal-labs/devcontainer:latest",
+
+  // Option B: Build locally with customizations
+  // "build": {
+  //   "dockerfile": "Dockerfile",
+  //   "args": {
+  //     "BUN_VERSION": "1.3.3",
+  //     "STRIPE_CLI": "false"
+  //   }
+  // },
+
+  // ── Features ──────────────────────────────────────────────────────────────
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": false },
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" }
+  },
+
+  // ── Runtime ───────────────────────────────────────────────────────────────
+  "runArgs": [
+    "--name", "my-project",
+    "--hostname", "my-project",
+    "--dns", "1.1.1.1",
+    "--dns", "8.8.8.8"
+  ],
+
+  // ── Environment ───────────────────────────────────────────────────────────
+  // Cache isolation: turbo + bun + pnpm caches stay in-container
+  "containerEnv": {
+    "DEVCONTAINER": "1",
+    "GPG_TTY": "/dev/pts/0",
+    "TURBO_CACHE_DIR": "/tmp/.turbo",
+    "BUN_INSTALL_CACHE_DIR": "/tmp/.bun-cache"
+    // For pnpm, add store-dir=/home/vscode/.local/share/pnpm/store to .npmrc
+  },
+
+  // ── Mounts ────────────────────────────────────────────────────────────────
+  // Anonymous volumes (no source=) are ephemeral — wiped on container rebuild.
+  // Named volumes (source=xxx) persist across rebuilds.
+  "mounts": [
+    // node_modules on a named volume (persists across rebuilds, fast installs)
+    "source=my-project-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
+
+    // .next build cache on anonymous volumes (clean on every rebuild)
+    // Add one per Next.js app:
+    // "target=${containerWorkspaceFolder}/apps/web/.next,type=volume",
+
+    // Host credentials (bind mounts)
+    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude.json,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.gnupg,target=/home/vscode/.gnupg,type=bind,consistency=cached"
+    // "source=${localEnv:HOME}/.gemini,target=/home/vscode/.gemini,type=bind,consistency=cached",
+    // "source=${localEnv:HOME}/.codex,target=/home/vscode/.codex,type=bind,consistency=cached",
+    // "source=${localEnv:HOME}/.config/stripe,target=/home/vscode/.config/stripe,type=bind,consistency=cached"
+  ],
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  // setup.sh auto-detects package manager, starts Supabase if configured, etc.
+  // Add .devcontainer/post-setup.sh for project-specific steps (migrations, etc.)
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+
+  "otherPortsAttributes": { "onAutoForward": "ignore" },
+
+  // ── Editor ────────────────────────────────────────────────────────────────
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "bradlc.vscode-tailwindcss",
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  },
+
+  "remoteUser": "vscode"
+}
