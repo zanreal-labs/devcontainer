@@ -19,7 +19,12 @@ fi
 # ── AI coding assistants ─────────────────────────────────────────────────────
 echo "==> Installing Claude Code..."
 curl -fsSL https://claude.ai/install.sh | bash
+# Add ~/.local/bin to PATH for this script and future shell sessions
 export PATH="$HOME/.local/bin:$PATH"
+grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.bashrc" 2>/dev/null || \
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
+grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.zshrc" 2>/dev/null || \
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc"
 
 echo "==> Installing Gemini CLI and OpenAI Codex..."
 npm install -g @google/gemini-cli @openai/codex
