@@ -1,6 +1,6 @@
 {
   "id": "uv",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "name": "uv",
   "description": "Installs uv — fast Python package manager and toolchain",
   "documentationURL": "https://docs.astral.sh/uv/",
