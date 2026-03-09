@@ -49,10 +49,18 @@
     // Add one per Next.js app:
     // "target=${containerWorkspaceFolder}/apps/web/.next,type=volume",
 
-    // Host credentials (bind mounts)
+    // ── Git & SSH ───────────────────────────────────────────────────────────
+    "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.gnupg,target=/home/vscode/.gnupg,type=bind,consistency=cached",
+    // SSH agent forwarding is handled automatically by VS Code / devcontainers CLI.
+    // If you need explicit SSH key access:
+    // "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,readonly"
+
+    // ── AI assistant credentials ────────────────────────────────────────────
+    // Each AI tool stores auth in its own config directory.
+    // Mount them to persist login across container rebuilds.
     "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude.json,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.gnupg,target=/home/vscode/.gnupg,type=bind,consistency=cached"
+    "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude.json,type=bind,consistency=cached"
     // "source=${localEnv:HOME}/.gemini,target=/home/vscode/.gemini,type=bind,consistency=cached",
     // "source=${localEnv:HOME}/.codex,target=/home/vscode/.codex,type=bind,consistency=cached",
     // "source=${localEnv:HOME}/.config/stripe,target=/home/vscode/.config/stripe,type=bind,consistency=cached"

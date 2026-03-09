@@ -34,6 +34,9 @@ RUN if [ "$STRIPE_CLI" = "true" ]; then \
       rm -rf /var/lib/apt/lists/*; \
     fi
 
+# Custom CA certificates (for corporate proxies — mount or COPY certs here)
+RUN mkdir -p /usr/local/share/ca-certificates/extra
+
 # Docker credential fix (avoids "error getting credentials" inside DinD)
 RUN mkdir -p /home/vscode/.docker && \
     echo '{"credsStore":""}' > /home/vscode/.docker/config.json && \

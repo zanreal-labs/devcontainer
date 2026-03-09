@@ -79,4 +79,13 @@ if [ -f ".devcontainer/post-setup.sh" ]; then
   bash .devcontainer/post-setup.sh
 fi
 
+# ── Health check ─────────────────────────────────────────────────────────────
+echo "==> Verifying tools..."
+echo "    node     $(node --version 2>/dev/null || echo 'MISSING')"
+echo "    bun      $(bun --version 2>/dev/null || echo 'MISSING')"
+echo "    claude   $(claude --version 2>/dev/null || echo 'MISSING')"
+echo "    supabase $(supabase --version 2>/dev/null || echo 'MISSING')"
+echo "    docker   $(docker --version 2>/dev/null | cut -d' ' -f3 | tr -d ',' || echo 'MISSING')"
+echo "    uv       $(/home/vscode/.local/bin/uv --version 2>/dev/null || echo 'MISSING')"
+
 echo "==> Setup complete!"
