@@ -1,5 +1,9 @@
 FROM mcr.microsoft.com/devcontainers/base:bookworm
 
+LABEL org.opencontainers.image.source="https://github.com/zanreal-labs/devcontainer"
+LABEL org.opencontainers.image.description="Batteries-included dev container for modern TypeScript/JavaScript projects"
+LABEL org.opencontainers.image.licenses="MIT"
+
 ARG BUN_VERSION=""
 ARG STRIPE_CLI=true
 
