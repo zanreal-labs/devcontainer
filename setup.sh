@@ -75,40 +75,33 @@ fi
 
 # ── Health check ─────────────────────────────────────────────────────────────
 echo ""
-echo "  ┌──────────────────────────────────────────┐"
-echo "  │         Environment ready                 │"
-echo "  ├──────────────────────────────────────────┤"
-
-# Runtimes (always present)
-echo "  │                                          │"
-echo "  │  Runtimes                                │"
-printf "  │    %-12s %s\n" "node" "$(node --version 2>/dev/null || echo 'MISSING')" | sed 's/$/ │/'
-command -v bun &>/dev/null && printf "  │    %-12s %s\n" "bun" "$(bun --version 2>/dev/null)" | sed 's/$/ │/'
-command -v uv &>/dev/null && printf "  │    %-12s %s\n" "uv" "$(uv --version 2>/dev/null | awk '{print $2}')" | sed 's/$/ │/'
-
-# AI Agents
-echo "  │                                          │"
-echo "  │  AI Agents                               │"
-printf "  │    %-12s %s\n" "claude" "$(claude --version 2>/dev/null || echo 'MISSING')" | sed 's/$/ │/'
-command -v gemini &>/dev/null && printf "  │    %-12s %s\n" "gemini" "$(gemini --version 2>/dev/null | head -1)" | sed 's/$/ │/'
-command -v codex &>/dev/null && printf "  │    %-12s %s\n" "codex" "$(codex --version 2>/dev/null)" | sed 's/$/ │/'
-
-# Infrastructure (only show what's installed)
-INFRA=""
-command -v docker &>/dev/null && INFRA="${INFRA}docker "
-command -v supabase &>/dev/null && INFRA="${INFRA}supabase "
-command -v stripe &>/dev/null && INFRA="${INFRA}stripe "
-command -v tb &>/dev/null && INFRA="${INFRA}tinybird "
-
-if [ -n "$INFRA" ]; then
-  echo "  │                                          │"
-  echo "  │  Infrastructure                          │"
-  command -v docker &>/dev/null && printf "  │    %-12s %s\n" "docker" "$(docker --version 2>/dev/null | awk '{print $3}' | tr -d ',')" | sed 's/$/ │/'
-  command -v supabase &>/dev/null && printf "  │    %-12s %s\n" "supabase" "$(supabase --version 2>/dev/null)" | sed 's/$/ │/'
-  command -v stripe &>/dev/null && printf "  │    %-12s %s\n" "stripe" "$(stripe version 2>/dev/null)" | sed 's/$/ │/'
-  command -v tb &>/dev/null && printf "  │    %-12s %s\n" "tinybird" "$(tb --version 2>/dev/null | awk '{print $NF}')" | sed 's/$/ │/'
-fi
-
-echo "  │                                          │"
-echo "  └──────────────────────────────────────────┘"
+echo "==> Environment ready"
 echo ""
+
+echo "  Runtimes"
+printf "    %-12s %s\n" "node" "$(node --version 2>/dev/null || echo 'MISSING')"
+command -v bun &>/dev/null && printf "    %-12s %s\n" "bun" "$(bun --version 2>/dev/null)"
+command -v python3 &>/dev/null && printf "    %-12s %s\n" "python" "$(python3 --version 2>/dev/null | awk '{print $2}')"
+command -v uv &>/dev/null && printf "    %-12s %s\n" "uv" "$(uv --version 2>/dev/null | awk '{print $2}')"
+echo ""
+
+echo "  AI Agents"
+printf "    %-12s %s\n" "claude" "$(claude --version 2>/dev/null || echo 'MISSING')"
+command -v gemini &>/dev/null && printf "    %-12s %s\n" "gemini" "$(gemini --version 2>/dev/null | head -1)"
+command -v codex &>/dev/null && printf "    %-12s %s\n" "codex" "$(codex --version 2>/dev/null)"
+echo ""
+
+HAS_INFRA=""
+command -v docker &>/dev/null && HAS_INFRA=1
+command -v supabase &>/dev/null && HAS_INFRA=1
+command -v stripe &>/dev/null && HAS_INFRA=1
+command -v tb &>/dev/null && HAS_INFRA=1
+
+if [ -n "$HAS_INFRA" ]; then
+  echo "  Infrastructure"
+  command -v docker &>/dev/null && printf "    %-12s %s\n" "docker" "$(docker --version 2>/dev/null | awk '{print $3}' | tr -d ',')"
+  command -v supabase &>/dev/null && printf "    %-12s %s\n" "supabase" "$(supabase --version 2>/dev/null)"
+  command -v stripe &>/dev/null && printf "    %-12s %s\n" "stripe" "$(stripe version 2>/dev/null)"
+  command -v tb &>/dev/null && printf "    %-12s %s\n" "tinybird" "$(tb --version 2>/dev/null | awk '{print $NF}')"
+  echo ""
+fi
