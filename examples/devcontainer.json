@@ -67,9 +67,10 @@
   ],
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
-  // setup.sh auto-detects package manager, starts Supabase if configured, etc.
+  // The setup script is embedded in the image — no need to copy it.
+  // It auto-detects your package manager, starts Supabase if configured, etc.
   // Add .devcontainer/post-setup.sh for project-specific steps (migrations, etc.)
-  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "postCreateCommand": "bash /usr/local/share/devcontainer/setup.sh",
 
   "otherPortsAttributes": { "onAutoForward": "ignore" },
 

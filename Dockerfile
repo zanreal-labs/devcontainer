@@ -1,11 +1,13 @@
 FROM mcr.microsoft.com/devcontainers/base:bookworm
 
 LABEL org.opencontainers.image.source="https://github.com/zanreal-labs/devcontainer"
-LABEL org.opencontainers.image.description="Batteries-included dev container for modern TypeScript/JavaScript projects"
+LABEL org.opencontainers.image.description="Batteries-included dev container for AI-assisted TypeScript/JavaScript development"
 LABEL org.opencontainers.image.licenses="MIT"
 
 ARG BUN_VERSION=""
 ARG STRIPE_CLI=true
+
+# ── Infrastructure CLIs ──────────────────────────────────────────────────────
 
 # Supabase CLI
 RUN ARCH=$(uname -m) && \
@@ -34,6 +36,19 @@ RUN if [ "$STRIPE_CLI" = "true" ]; then \
       rm -rf /var/lib/apt/lists/*; \
     fi
 
+# ── AI coding agents ────────────────────────────────────────────────────────
+
+# Claude Code
+USER vscode
+RUN curl -fsSL https://claude.ai/install.sh | bash
+ENV PATH="/home/vscode/.local/bin:$PATH"
+
+# Gemini CLI and OpenAI Codex (need npm from base image)
+USER root
+RUN npm install -g @google/gemini-cli @openai/codex 2>/dev/null || true
+
+# ── System setup ─────────────────────────────────────────────────────────────
+
 # Custom CA certificates (for corporate proxies — mount or COPY certs here)
 RUN mkdir -p /usr/local/share/ca-certificates/extra
 
@@ -41,3 +56,13 @@ RUN mkdir -p /usr/local/share/ca-certificates/extra
 RUN mkdir -p /home/vscode/.docker && \
     echo '{"credsStore":""}' > /home/vscode/.docker/config.json && \
     chown -R vscode:vscode /home/vscode/.docker
+
+# Ensure ~/.local/bin is in PATH for all shell sessions
+RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/vscode/.bashrc && \
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/vscode/.zshrc 2>/dev/null || true
+
+# ── Embedded setup script ───────────────────────────────────────────────────
+COPY setup.sh /usr/local/share/devcontainer/setup.sh
+RUN chmod +x /usr/local/share/devcontainer/setup.sh
+
+USER vscode

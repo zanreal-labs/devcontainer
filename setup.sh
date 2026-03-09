@@ -16,19 +16,6 @@ if [ -d "$HOME/.gemini" ]; then
   sudo chown -R vscode:vscode "$HOME/.gemini"
 fi
 
-# ── AI coding assistants ─────────────────────────────────────────────────────
-echo "==> Installing Claude Code..."
-curl -fsSL https://claude.ai/install.sh | bash
-# Add ~/.local/bin to PATH for this script and future shell sessions
-export PATH="$HOME/.local/bin:$PATH"
-grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.bashrc" 2>/dev/null || \
-  echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
-grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.zshrc" 2>/dev/null || \
-  echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc"
-
-echo "==> Installing Gemini CLI and OpenAI Codex..."
-npm install -g @google/gemini-cli @openai/codex
-
 # ── Node modules volume ownership ───────────────────────────────────────────
 if [ -d "node_modules" ]; then
   echo "==> Fixing node_modules volume ownership..."
@@ -86,6 +73,6 @@ echo "    bun      $(bun --version 2>/dev/null || echo 'MISSING')"
 echo "    claude   $(claude --version 2>/dev/null || echo 'MISSING')"
 echo "    supabase $(supabase --version 2>/dev/null || echo 'MISSING')"
 echo "    docker   $(docker --version 2>/dev/null | cut -d' ' -f3 | tr -d ',' || echo 'MISSING')"
-echo "    uv       $(/home/vscode/.local/bin/uv --version 2>/dev/null || echo 'MISSING')"
+echo "    uv       $(uv --version 2>/dev/null || echo 'MISSING')"
 
 echo "==> Setup complete!"

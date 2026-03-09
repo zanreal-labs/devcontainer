@@ -4,7 +4,7 @@ A production-ready dev container image built for AI-assisted software developmen
 
 ## Why
 
-AI coding agents (Claude Code, Gemini CLI, Codex, Aider) need a consistent, reproducible environment to work effectively. When agents run in inconsistent local setups, they hit missing tools, broken PATHs, and permission errors. Dev containers solve this by giving every developer — and every AI agent — the same deterministic environment.
+AI coding agents (Claude Code, Gemini CLI, Codex) need a consistent, reproducible environment to work effectively. When agents run in inconsistent local setups, they hit missing tools, broken PATHs, and permission errors. Dev containers solve this by giving every developer — and every AI agent — the same deterministic environment.
 
 This image is designed around three principles:
 
@@ -23,16 +23,13 @@ This image is designed around three principles:
 
 ## Quick start
 
-**1. Copy `setup.sh` into your project:**
+**1. Add a `devcontainer.json` to your project:**
 
 ```
 .devcontainer/
 ├── devcontainer.json
-├── setup.sh            # from this repo
 └── post-setup.sh       # optional, project-specific steps
 ```
-
-**2. Add a `devcontainer.json`:**
 
 ```jsonc
 {
@@ -41,11 +38,13 @@ This image is designed around three principles:
     "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": false },
     "ghcr.io/devcontainers/features/node:1": { "version": "22" }
   },
-  "postCreateCommand": "bash .devcontainer/setup.sh"
+  "postCreateCommand": "bash /usr/local/share/devcontainer/setup.sh"
 }
 ```
 
-**3. Open in VS Code** or any devcontainer-compatible editor. Done.
+**2. Open in VS Code** or any devcontainer-compatible editor. Done.
+
+Everything is baked into the image — AI agents, CLIs, runtimes. The embedded `setup.sh` handles runtime setup (dependency install, service startup) automatically.
 
 See [`examples/devcontainer.json`](examples/devcontainer.json) for a fully annotated configuration.
 
@@ -117,7 +116,7 @@ SSH agent forwarding is handled automatically by VS Code and the devcontainers C
 
 ## Auto-detected setup
 
-`setup.sh` detects your project and runs the right setup automatically:
+The embedded setup script (at `/usr/local/share/devcontainer/setup.sh`) detects your project and runs the right setup automatically:
 
 | Signal | Action |
 |--------|--------|
