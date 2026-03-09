@@ -49,6 +49,9 @@ RUN npm install -g @google/gemini-cli @openai/codex 2>/dev/null || true
 
 # ── System setup ─────────────────────────────────────────────────────────────
 
+# GPG symlink (macOS .gitconfig references /usr/local/bin/gpg, Debian has /usr/bin/gpg)
+RUN ln -sf /usr/bin/gpg /usr/local/bin/gpg 2>/dev/null || true
+
 # Custom CA certificates (for corporate proxies — mount or COPY certs here)
 RUN mkdir -p /usr/local/share/ca-certificates/extra
 
