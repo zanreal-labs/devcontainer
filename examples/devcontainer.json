@@ -2,22 +2,20 @@
   "name": "My Project",
 
   // ── Image ─────────────────────────────────────────────────────────────────
-  // Option A: Use the prebuilt image from GHCR
   "image": "ghcr.io/zanreal-labs/devcontainer:latest",
 
-  // Option B: Build locally with customizations
-  // "build": {
-  //   "dockerfile": "Dockerfile",
-  //   "args": {
-  //     "BUN_VERSION": "1.3.3",
-  //     "STRIPE_CLI": "false"
-  //   }
-  // },
-
   // ── Features ──────────────────────────────────────────────────────────────
+  // Core (always needed)
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": false },
-    "ghcr.io/devcontainers/features/node:1": { "version": "22" }
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" },
+
+    // Pick what you need:
+    "ghcr.io/zanreal-labs/devcontainer/bun:1": {},
+    "ghcr.io/zanreal-labs/devcontainer/uv:1": {},
+    "ghcr.io/zanreal-labs/devcontainer/supabase-cli:1": {},
+    "ghcr.io/zanreal-labs/devcontainer/stripe-cli:1": {},
+    "ghcr.io/zanreal-labs/devcontainer/tinybird-cli:1": {}
   },
 
   // ── Runtime ───────────────────────────────────────────────────────────────
@@ -39,26 +37,18 @@
   },
 
   // ── Mounts ────────────────────────────────────────────────────────────────
-  // Anonymous volumes (no source=) are ephemeral — wiped on container rebuild.
-  // Named volumes (source=xxx) persist across rebuilds.
   "mounts": [
     // node_modules on a named volume (persists across rebuilds, fast installs)
     "source=my-project-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
 
     // .next build cache on anonymous volumes (clean on every rebuild)
-    // Add one per Next.js app:
     // "target=${containerWorkspaceFolder}/apps/web/.next,type=volume",
 
-    // ── Git & SSH ───────────────────────────────────────────────────────────
+    // Git & SSH
     "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached",
     "source=${localEnv:HOME}/.gnupg,target=/home/vscode/.gnupg,type=bind,consistency=cached",
-    // SSH agent forwarding is handled automatically by VS Code / devcontainers CLI.
-    // If you need explicit SSH key access:
-    // "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,readonly"
 
-    // ── AI assistant credentials ────────────────────────────────────────────
-    // Each AI tool stores auth in its own config directory.
-    // Mount them to persist login across container rebuilds.
+    // AI assistant credentials
     "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
     "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude.json,type=bind,consistency=cached"
     // "source=${localEnv:HOME}/.gemini,target=/home/vscode/.gemini,type=bind,consistency=cached",
@@ -67,9 +57,8 @@
   ],
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
-  // The setup script is embedded in the image — no need to copy it.
-  // It auto-detects your package manager, starts Supabase if configured, etc.
-  // Add .devcontainer/post-setup.sh for project-specific steps (migrations, etc.)
+  // Embedded setup script — auto-detects package manager, starts services, etc.
+  // Add .devcontainer/post-setup.sh for project-specific steps.
   "postCreateCommand": "bash /usr/local/share/devcontainer/setup.sh",
 
   "otherPortsAttributes": { "onAutoForward": "ignore" },

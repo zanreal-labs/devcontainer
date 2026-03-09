@@ -1,0 +1,11 @@
+{
+  "id": "tinybird-cli",
+  "version": "1.0.0",
+  "name": "Tinybird CLI",
+  "description": "Installs the Tinybird CLI for real-time analytics development",
+  "documentationURL": "https://www.tinybird.co/docs/cli",
+  "options": {},
+  "installsAfter": [
+    "ghcr.io/zanreal-labs/devcontainer/uv"
+  ]
+}

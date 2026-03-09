@@ -1,0 +1,11 @@
+{
+  "id": "stripe-cli",
+  "version": "1.0.0",
+  "name": "Stripe CLI",
+  "description": "Installs the Stripe CLI for payment integration development",
+  "documentationURL": "https://docs.stripe.com/stripe-cli",
+  "options": {},
+  "installsAfter": [
+    "ghcr.io/devcontainers/features/common-utils"
+  ]
+}

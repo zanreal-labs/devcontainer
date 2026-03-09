@@ -1,0 +1,11 @@
+{
+  "id": "supabase-cli",
+  "version": "1.0.0",
+  "name": "Supabase CLI",
+  "description": "Installs the Supabase CLI for local development",
+  "documentationURL": "https://supabase.com/docs/reference/cli",
+  "options": {},
+  "installsAfter": [
+    "ghcr.io/devcontainers/features/common-utils"
+  ]
+}
