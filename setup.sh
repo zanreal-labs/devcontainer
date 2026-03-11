@@ -3,12 +3,44 @@ set -e
 
 # ── GPG ──────────────────────────────────────────────────────────────────────
 echo "==> Setting up GPG..."
-export GPG_TTY=$(tty) 2>/dev/null || true
+
 if [ -d "$HOME/.gnupg" ]; then
+  # Fix ownership — bind mounts may come in as root
   sudo chown -R vscode:vscode "$HOME/.gnupg" 2>/dev/null || true
   chmod 700 "$HOME/.gnupg"
-  chmod 600 "$HOME/.gnupg/"* 2>/dev/null || true
+  chmod 600 "$HOME/.gnupg/"*.conf 2>/dev/null || true
+  chmod 600 "$HOME/.gnupg/private-keys-v1.d"/* 2>/dev/null || true
+
+  # Kill stale agent so it picks up the refreshed keyring / socket
+  gpgconf --kill gpg-agent 2>/dev/null || true
+
+  # On Linux hosts the bind-mounted .gnupg may contain a live agent socket
+  # pointing back to the host agent — this just works.
+  # On macOS, Docker cannot forward Unix sockets so we start a local agent
+  # using the mounted keyring and enable loopback pinentry for non-interactive
+  # terminals (VS Code integrated terminal, CI, background processes).
+  if [ ! -S "$HOME/.gnupg/S.gpg-agent" ]; then
+    AGENT_CONF="$HOME/.gnupg/gpg-agent.conf"
+    if [ ! -f "$AGENT_CONF" ] || ! grep -q 'allow-loopback-pinentry' "$AGENT_CONF" 2>/dev/null; then
+      echo "allow-loopback-pinentry" >> "$AGENT_CONF"
+    fi
+
+    GPG_CONF="$HOME/.gnupg/gpg.conf"
+    if [ ! -f "$GPG_CONF" ] || ! grep -q 'pinentry-mode loopback' "$GPG_CONF" 2>/dev/null; then
+      echo "pinentry-mode loopback" >> "$GPG_CONF"
+    fi
+
+    gpg-agent --daemon 2>/dev/null || true
+  fi
 fi
+
+# Set GPG_TTY dynamically so pinentry can prompt in the right terminal
+for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+  if [ -f "$rc" ] && ! grep -q 'GPG_TTY' "$rc" 2>/dev/null; then
+    echo 'export GPG_TTY=$(tty)' >> "$rc"
+  fi
+done
+export GPG_TTY=$(tty) 2>/dev/null || true
 
 # ── Gemini config ────────────────────────────────────────────────────────────
 if [ -d "$HOME/.gemini" ]; then
@@ -91,17 +123,10 @@ command -v gemini &>/dev/null && printf "    %-12s %s\n" "gemini" "$(gemini --ve
 command -v codex &>/dev/null && printf "    %-12s %s\n" "codex" "$(codex --version 2>/dev/null)"
 echo ""
 
-HAS_INFRA=""
-command -v docker &>/dev/null && HAS_INFRA=1
-command -v supabase &>/dev/null && HAS_INFRA=1
-command -v stripe &>/dev/null && HAS_INFRA=1
-command -v tb &>/dev/null && HAS_INFRA=1
-
-if [ -n "$HAS_INFRA" ]; then
-  echo "  Infrastructure"
-  command -v docker &>/dev/null && printf "    %-12s %s\n" "docker" "$(docker --version 2>/dev/null | awk '{print $3}' | tr -d ',')"
-  command -v supabase &>/dev/null && printf "    %-12s %s\n" "supabase" "$(supabase --version 2>/dev/null)"
-  command -v stripe &>/dev/null && printf "    %-12s %s\n" "stripe" "$(stripe version 2>/dev/null)"
-  command -v tb &>/dev/null && printf "    %-12s %s\n" "tinybird" "$(tb --version 2>/dev/null | awk '{print $NF}')"
-  echo ""
-fi
+echo "  Infrastructure"
+command -v docker &>/dev/null && printf "    %-12s %s\n" "docker" "$(docker --version 2>/dev/null | awk '{print $3}' | tr -d ',')"
+command -v gh &>/dev/null && printf "    %-12s %s\n" "gh" "$(gh --version 2>/dev/null | head -1 | awk '{print $3}')"
+command -v supabase &>/dev/null && printf "    %-12s %s\n" "supabase" "$(supabase --version 2>/dev/null)"
+command -v stripe &>/dev/null && printf "    %-12s %s\n" "stripe" "$(stripe version 2>/dev/null)"
+command -v tb &>/dev/null && printf "    %-12s %s\n" "tinybird" "$(tb --version 2>/dev/null | awk '{print $NF}')"
+echo ""
