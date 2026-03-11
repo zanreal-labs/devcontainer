@@ -30,7 +30,6 @@
   // Cache isolation: turbo + bun + pnpm caches stay in-container
   "containerEnv": {
     "DEVCONTAINER": "1",
-    "GPG_TTY": "/dev/pts/0",
     "TURBO_CACHE_DIR": "/tmp/.turbo",
     "BUN_INSTALL_CACHE_DIR": "/tmp/.bun-cache"
     // For pnpm, add store-dir=/home/vscode/.local/share/pnpm/store to .npmrc
@@ -44,8 +43,8 @@
     // .next build cache on anonymous volumes (clean on every rebuild)
     // "target=${containerWorkspaceFolder}/apps/web/.next,type=volume",
 
-    // Git & SSH
-    "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached",
+    // Git & SSH (staged to /tmp — setup.sh copies it so git can write freely)
+    "source=${localEnv:HOME}/.gitconfig,target=/tmp/.host-gitconfig,type=bind,consistency=cached",
     "source=${localEnv:HOME}/.gnupg,target=/home/vscode/.gnupg,type=bind,consistency=cached",
 
     // AI assistant credentials

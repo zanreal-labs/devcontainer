@@ -1,6 +1,16 @@
 #!/bin/bash
 set -e
 
+# ── Git config ───────────────────────────────────────────────────────────────
+# .gitconfig is bind-mounted to a staging path (/tmp/.host-gitconfig) because
+# Docker file bind mounts can't handle atomic rename (git config writes a
+# temp file then renames). We copy it so git can modify it freely.
+if [ -f /tmp/.host-gitconfig ]; then
+  echo "==> Copying host .gitconfig..."
+  cp /tmp/.host-gitconfig "$HOME/.gitconfig"
+  chown vscode:vscode "$HOME/.gitconfig"
+fi
+
 # ── GPG ──────────────────────────────────────────────────────────────────────
 echo "==> Setting up GPG..."
 
