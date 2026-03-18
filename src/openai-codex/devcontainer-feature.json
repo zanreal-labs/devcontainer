@@ -1,0 +1,12 @@
+{
+  "id": "openai-codex",
+  "version": "1.0.0",
+  "name": "OpenAI Codex",
+  "description": "Installs OpenAI Codex — OpenAI's AI coding agent for the terminal",
+  "documentationURL": "https://github.com/openai/codex",
+  "options": {},
+  "installsAfter": [
+    "ghcr.io/devcontainers/features/common-utils",
+    "ghcr.io/devcontainers/features/node"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "gemini-cli",
+  "version": "1.0.0",
+  "name": "Gemini CLI",
+  "description": "Installs Gemini CLI — Google's AI coding agent for the terminal",
+  "documentationURL": "https://github.com/google/gemini-cli",
+  "options": {},
+  "installsAfter": [
+    "ghcr.io/devcontainers/features/common-utils",
+    "ghcr.io/devcontainers/features/node"
+  ]
+}

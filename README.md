@@ -1,14 +1,14 @@
 # devcontainer
 
-A modular, AI-first dev container for modern software development. A slim base image with AI coding agents, plus opt-in features for the tools you actually use.
+A modular, AI-first dev container for modern software development. A slim base image with opt-in features for AI coding agents and the tools you actually use.
 
 ## Why
 
-AI coding agents (Claude Code, Gemini CLI, Codex) need a consistent, reproducible environment to work effectively. When agents run in inconsistent local setups, they hit missing tools, broken PATHs, and permission errors. Dev containers solve this by giving every developer — and every AI agent — the same deterministic environment.
+AI coding agents (Claude Code, Gemini CLI, OpenCode, Codex) need a consistent, reproducible environment to work effectively. When agents run in inconsistent local setups, they hit missing tools, broken PATHs, and permission errors. Dev containers solve this by giving every developer — and every AI agent — the same deterministic environment.
 
 This image is designed around three principles:
 
-1. **AI-first** — every major coding agent is pre-installed and configured
+1. **AI-first** — every major coding agent is available as a feature
 2. **Modular** — slim base image, add only the tools you need via features
 3. **Zero cache leakage** — build artifacts stay in the container, never pollute your host drive
 
@@ -22,7 +22,9 @@ Add a `devcontainer.json` to your project:
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": false },
     "ghcr.io/devcontainers/features/node:1": { "version": "22" },
-    // Add what you need:
+    // AI agents:
+    "ghcr.io/zanreal-labs/devcontainer/claude-code:1": {},
+    // Tools:
     "ghcr.io/zanreal-labs/devcontainer/bun:1": {},
     "ghcr.io/zanreal-labs/devcontainer/supabase-cli:1": {}
   },
@@ -40,11 +42,27 @@ See [`examples/devcontainer.json`](examples/devcontainer.json) for a fully annot
 
 | Category | Tools |
 |----------|-------|
-| **AI coding agents** | [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Gemini CLI](https://github.com/google/gemini-cli), [OpenAI Codex](https://github.com/openai/codex) |
 | **Security** | GPG commit signing (macOS path fix), SSH agent forwarding, Docker credential isolation |
 | **System** | Custom CA certificate support, embedded setup script |
 
-### Optional features (pick what you need)
+### AI coding agents (pick what you use)
+
+| Feature | ID | Description |
+|---------|----|-------------|
+| **Claude Code** | `ghcr.io/zanreal-labs/devcontainer/claude-code:1` | Anthropic's AI coding agent |
+| **Gemini CLI** | `ghcr.io/zanreal-labs/devcontainer/gemini-cli:1` | Google's AI coding agent (requires Node.js feature) |
+| **OpenAI Codex** | `ghcr.io/zanreal-labs/devcontainer/openai-codex:1` | OpenAI's AI coding agent (requires Node.js feature) |
+| **OpenCode** | `ghcr.io/zanreal-labs/devcontainer/opencode:1` | Open-source AI coding agent |
+
+```jsonc
+"features": {
+  // Only add agents you actually use:
+  "ghcr.io/zanreal-labs/devcontainer/claude-code:1": {},
+  "ghcr.io/zanreal-labs/devcontainer/opencode:1": {}
+}
+```
+
+### Optional tools (pick what you need)
 
 | Feature | ID | Description |
 |---------|----|-------------|
@@ -81,26 +99,11 @@ Dev containers bind-mount your workspace from the host. Without cache isolation,
 ]
 ```
 
-## AI credential management
-
-Mount AI config directories from your host to persist authentication across container rebuilds:
-
-```jsonc
-"mounts": [
-  "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
-  "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude.json,type=bind,consistency=cached",
-  "source=${localEnv:HOME}/.gemini,target=/home/vscode/.gemini,type=bind,consistency=cached",
-  "source=${localEnv:HOME}/.codex,target=/home/vscode/.codex,type=bind,consistency=cached"
-]
-```
-
-For API keys, use your editor's secrets management or a `.env` file excluded from version control. Never bake API keys into the image.
-
 ## Git & SSH
 
 ```jsonc
 "mounts": [
-  "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached",
+  "source=${localEnv:HOME}/.gitconfig,target=/tmp/.host-gitconfig,type=bind,consistency=cached",
   "source=${localEnv:HOME}/.gnupg,target=/home/vscode/.gnupg,type=bind,consistency=cached"
 ]
 ```

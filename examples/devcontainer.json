@@ -5,17 +5,12 @@
   "image": "ghcr.io/zanreal-labs/devcontainer:latest",
 
   // ── Features ──────────────────────────────────────────────────────────────
-  // Core (always needed)
+  // Only runtime + docker-in-docker. Everything else is installed by the
+  // interactive wizard on first container start (run: devcontainer-wizard).
+  // For CI/headless, set DEVCONTAINER_TOOLS env var (see below).
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": false },
-    "ghcr.io/devcontainers/features/node:1": { "version": "22" },
-
-    // Pick what you need:
-    "ghcr.io/zanreal-labs/devcontainer/bun:1": {},
-    "ghcr.io/zanreal-labs/devcontainer/uv:1": {},
-    "ghcr.io/zanreal-labs/devcontainer/supabase-cli:1": {},
-    "ghcr.io/zanreal-labs/devcontainer/stripe-cli:1": {},
-    "ghcr.io/zanreal-labs/devcontainer/tinybird-cli:1": {}
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" }
   },
 
   // ── Runtime ───────────────────────────────────────────────────────────────
@@ -27,37 +22,32 @@
   ],
 
   // ── Environment ───────────────────────────────────────────────────────────
-  // Cache isolation: turbo + bun + pnpm caches stay in-container
   "containerEnv": {
     "DEVCONTAINER": "1",
     "TURBO_CACHE_DIR": "/tmp/.turbo",
-    "BUN_INSTALL_CACHE_DIR": "/tmp/.bun-cache"
-    // For pnpm, add store-dir=/home/vscode/.local/share/pnpm/store to .npmrc
+    "BUN_INSTALL_CACHE_DIR": "/tmp/.bun-cache",
+    "SSH_AUTH_SOCK": "/run/host-services/ssh-auth.sock"
+    // For CI/headless: pre-install tools without the wizard
+    // "DEVCONTAINER_TOOLS": "claude-code,bun,supabase-cli,github-cli"
   },
 
   // ── Mounts ────────────────────────────────────────────────────────────────
+  // Containers are isolated — only git/ssh/gpg are forwarded from host.
   "mounts": [
-    // node_modules on a named volume (persists across rebuilds, fast installs)
     "source=my-project-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
-
-    // .next build cache on anonymous volumes (clean on every rebuild)
     // "target=${containerWorkspaceFolder}/apps/web/.next,type=volume",
 
-    // Git & SSH (staged to /tmp — setup.sh copies it so git can write freely)
+    // Git, SSH, GPG — staged to /tmp, setup.sh copies to $HOME (Zed-safe)
     "source=${localEnv:HOME}/.gitconfig,target=/tmp/.host-gitconfig,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.gnupg,target=/home/vscode/.gnupg,type=bind,consistency=cached",
-
-    // AI assistant credentials
-    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude.json,type=bind,consistency=cached"
-    // "source=${localEnv:HOME}/.gemini,target=/home/vscode/.gemini,type=bind,consistency=cached",
-    // "source=${localEnv:HOME}/.codex,target=/home/vscode/.codex,type=bind,consistency=cached",
-    // "source=${localEnv:HOME}/.config/stripe,target=/home/vscode/.config/stripe,type=bind,consistency=cached"
+    "source=${localEnv:HOME}/.gnupg,target=/tmp/.host-gnupg,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.ssh,target=/tmp/.host-ssh,type=bind,consistency=cached",
+    "source=/run/host-services/ssh-auth.sock,target=/run/host-services/ssh-auth.sock,type=bind"
   ],
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
-  // Embedded setup script — auto-detects package manager, starts services, etc.
-  // Add .devcontainer/post-setup.sh for project-specific steps.
+  // setup.sh handles git/ssh/gpg, package install, services, and launches
+  // the interactive wizard on first start. Add .devcontainer/post-setup.sh
+  // for project-specific steps.
   "postCreateCommand": "bash /usr/local/share/devcontainer/setup.sh",
 
   "otherPortsAttributes": { "onAutoForward": "ignore" },

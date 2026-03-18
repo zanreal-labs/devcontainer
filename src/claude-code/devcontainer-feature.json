@@ -1,0 +1,11 @@
+{
+  "id": "claude-code",
+  "version": "1.0.0",
+  "name": "Claude Code",
+  "description": "Installs Claude Code — Anthropic's AI coding agent for the terminal",
+  "documentationURL": "https://docs.anthropic.com/en/docs/claude-code",
+  "options": {},
+  "installsAfter": [
+    "ghcr.io/devcontainers/features/common-utils"
+  ]
+}

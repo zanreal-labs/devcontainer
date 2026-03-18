@@ -4,18 +4,6 @@ LABEL org.opencontainers.image.source="https://github.com/zanreal-labs/devcontai
 LABEL org.opencontainers.image.description="AI-first dev container base image"
 LABEL org.opencontainers.image.licenses="MIT"
 
-# ── AI coding agents ────────────────────────────────────────────────────────
-
-# Claude Code (installed as vscode user, binary only — auth comes from bind mounts)
-USER vscode
-RUN curl -fsSL https://claude.ai/install.sh | bash
-ENV PATH="/home/vscode/.local/bin:$PATH"
-
-# Note: Gemini CLI and OpenAI Codex are installed at runtime via setup.sh
-# because Node.js is added as a devcontainer feature (not available at build time)
-
-USER root
-
 # ── System setup ─────────────────────────────────────────────────────────────
 
 # GPG symlink (macOS .gitconfig references /usr/local/bin/gpg, Debian has /usr/bin/gpg)
@@ -24,17 +12,34 @@ RUN ln -sf /usr/bin/gpg /usr/local/bin/gpg 2>/dev/null || true
 # Custom CA certificates (for corporate proxies — mount or COPY certs here)
 RUN mkdir -p /usr/local/share/ca-certificates/extra
 
+# Default non-root user — Microsoft base uses "vscode", override with build arg
+ARG USERNAME=vscode
+
 # Docker credential fix (avoids "error getting credentials" inside DinD)
-RUN mkdir -p /home/vscode/.docker && \
-    echo '{"credsStore":""}' > /home/vscode/.docker/config.json && \
-    chown -R vscode:vscode /home/vscode/.docker
+RUN mkdir -p /home/${USERNAME}/.docker && \
+    echo '{"credsStore":""}' > /home/${USERNAME}/.docker/config.json && \
+    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.docker
 
 # Ensure ~/.local/bin is in PATH for all shell sessions
-RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/vscode/.bashrc && \
-    echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/vscode/.zshrc 2>/dev/null || true
+RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/${USERNAME}/.bashrc && \
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/${USERNAME}/.zshrc 2>/dev/null || true
 
-# ── Embedded setup script ───────────────────────────────────────────────────
+# ── TUI toolkit (Charmbracelet gum) ─────────────────────────────────────────
+RUN mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://repo.charm.sh/apt/gpg.key | gpg --dearmor -o /etc/apt/keyrings/charm.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" > /etc/apt/sources.list.d/charm.list && \
+    apt-get update && \
+    apt-get install -y gum tmux && \
+    rm -rf /var/lib/apt/lists/*
+
+# ── tmux config ──────────────────────────────────────────────────────────────
+COPY tmux.conf /home/${USERNAME}/.tmux.conf
+RUN chown ${USERNAME}:${USERNAME} /home/${USERNAME}/.tmux.conf
+
+# ── Embedded scripts ────────────────────────────────────────────────────────
 COPY setup.sh /usr/local/share/devcontainer/setup.sh
-RUN chmod +x /usr/local/share/devcontainer/setup.sh
+COPY wizard.sh /usr/local/share/devcontainer/wizard.sh
+RUN chmod +x /usr/local/share/devcontainer/setup.sh /usr/local/share/devcontainer/wizard.sh && \
+    ln -s /usr/local/share/devcontainer/wizard.sh /usr/local/bin/devcontainer-wizard
 
-USER vscode
+USER ${USERNAME}

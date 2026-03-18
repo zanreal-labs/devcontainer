@@ -1,0 +1,11 @@
+{
+  "id": "opencode",
+  "version": "1.0.0",
+  "name": "OpenCode",
+  "description": "Installs OpenCode — open-source AI coding agent for the terminal",
+  "documentationURL": "https://opencode.ai",
+  "options": {},
+  "installsAfter": [
+    "ghcr.io/devcontainers/features/common-utils"
+  ]
+}

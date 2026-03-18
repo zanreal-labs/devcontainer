@@ -3,10 +3,14 @@
 ## Development
 
 1. Fork and clone the repository
-2. Make changes to `Dockerfile` or `setup.sh`
+2. Make changes to `Dockerfile`, `setup.sh`, or features in `src/`
 3. Test locally:
    ```bash
+   # Base image
    docker buildx build --tag devcontainer:local .
+
+   # Test a feature (e.g. claude-code)
+   devcontainer features test -f claude-code .
    ```
 
 ## Releasing
