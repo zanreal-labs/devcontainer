@@ -69,10 +69,31 @@ source "$CONFIG_DIR/feature.env"
 # TRAEFIK_DOMAIN env var overrides the default domain
 DOMAIN="${TRAEFIK_DOMAIN:-$DEFAULT_DOMAIN}"
 
-# Fix: Docker bind mount may have created dynamic.yml as a directory
-if [ -d "$CONFIG_DIR/dynamic.yml" ]; then
-  sudo rm -rf "$CONFIG_DIR/dynamic.yml"
-fi
+# Fix: Docker bind mount may have created config files as directories
+for f in "$CONFIG_DIR/dynamic.yml" "$CONFIG_DIR/traefik.yml"; do
+  if [ -d "$f" ]; then
+    sudo rm -rf "$f"
+  fi
+done
+
+# ── Generate traefik.yml (static config) ───────────────────────────────────
+cat > "$CONFIG_DIR/traefik.yml" <<'YAMLSTATIC'
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+YAMLSTATIC
 
 # ── Generate dynamic.yml ─────────────────────────────────────────────────────
 {
