@@ -1,0 +1,27 @@
+{
+  "id": "traefik",
+  "version": "1.0.0",
+  "name": "Traefik Reverse Proxy",
+  "description": "Traefik reverse proxy with subdomain routing to local services",
+  "documentationURL": "https://doc.traefik.io/traefik/",
+  "options": {
+    "domain": {
+      "type": "string",
+      "default": "app.localhost",
+      "description": "Base domain for routing (e.g. 'horizon.localhost')"
+    },
+    "routes": {
+      "type": "string",
+      "default": "",
+      "description": "Comma-separated name:port pairs (e.g. 'web:3000,api:4000')"
+    },
+    "defaultApp": {
+      "type": "string",
+      "default": "",
+      "description": "App name that also receives the root domain route"
+    }
+  },
+  "installsAfter": [
+    "ghcr.io/devcontainers/features/common-utils"
+  ]
+}

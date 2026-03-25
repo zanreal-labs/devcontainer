@@ -113,6 +113,10 @@ if [ "${TINYBIRD:-}" = "1" ] && command -v docker &>/dev/null; then
   sleep 3
 fi
 
+if [ -f "/usr/local/share/traefik/docker-compose.yml" ] && command -v docker &>/dev/null; then
+  traefik-start
+fi
+
 # ── Setup wizard ─────────────────────────────────────────────────────────────
 # Interactive TUI for selecting optional tools (AI agents, CLIs, etc.)
 # Runs on first container start; re-run with: devcontainer-wizard --force
