@@ -1,6 +1,6 @@
 {
   "id": "traefik",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": "Traefik Reverse Proxy",
   "description": "Traefik reverse proxy with subdomain routing to local services",
   "documentationURL": "https://doc.traefik.io/traefik/",
