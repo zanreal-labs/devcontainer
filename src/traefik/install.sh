@@ -10,6 +10,9 @@ CONFIG_DIR="/usr/local/share/traefik"
 
 mkdir -p "$CONFIG_DIR"
 
+# ── Placeholder dynamic.yml (overwritten by traefik-start at runtime) ────────
+echo "http:" > "$CONFIG_DIR/dynamic.yml"
+
 # ── Save feature options for runtime use ─────────────────────────────────────
 cat > "$CONFIG_DIR/feature.env" <<ENV
 DEFAULT_DOMAIN="${DOMAIN}"
@@ -63,6 +66,11 @@ source "$CONFIG_DIR/feature.env"
 
 # TRAEFIK_DOMAIN env var overrides the default domain
 DOMAIN="${TRAEFIK_DOMAIN:-$DEFAULT_DOMAIN}"
+
+# Fix: Docker bind mount may have created dynamic.yml as a directory
+if [ -d "$CONFIG_DIR/dynamic.yml" ]; then
+  rm -rf "$CONFIG_DIR/dynamic.yml"
+fi
 
 # ── Generate dynamic.yml ─────────────────────────────────────────────────────
 {
