@@ -15,12 +15,15 @@ chmod 777 "$CONFIG_DIR"
 echo "http:" > "$CONFIG_DIR/dynamic.yml"
 chmod 666 "$CONFIG_DIR/dynamic.yml"
 
+# Ensure all config files are writable by non-root (traefik-start runs as vscode)
+
 # ── Save feature options for runtime use ─────────────────────────────────────
 cat > "$CONFIG_DIR/feature.env" <<ENV
 DEFAULT_DOMAIN="${DOMAIN}"
 ROUTES="${ROUTES}"
 DEFAULTAPP="${DEFAULTAPP}"
 ENV
+chmod 666 "$CONFIG_DIR/feature.env"
 
 # ── Static config (traefik.yml) ──────────────────────────────────────────────
 cat > "$CONFIG_DIR/traefik.yml" <<'YAML'
@@ -40,6 +43,7 @@ providers:
     filename: /etc/traefik/dynamic.yml
     watch: true
 YAML
+chmod 666 "$CONFIG_DIR/traefik.yml"
 
 # ── Docker Compose ───────────────────────────────────────────────────────────
 cat > "$CONFIG_DIR/docker-compose.yml" <<YAML
@@ -57,6 +61,7 @@ services:
       - ${CONFIG_DIR}/traefik.yml:/etc/traefik/traefik.yml:ro
       - ${CONFIG_DIR}/dynamic.yml:/etc/traefik/dynamic.yml:ro
 YAML
+chmod 666 "$CONFIG_DIR/docker-compose.yml"
 
 # ── Start script (generates dynamic.yml at runtime) ─────────────────────────
 cat > /usr/local/bin/traefik-start <<'SCRIPT'
