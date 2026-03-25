@@ -7,9 +7,14 @@ CURRENT_USER="$(id -un)"
 CURRENT_GROUP="$(id -gn)"
 
 # ── Git config ───────────────────────────────────────────────────────────────
-if [ -f /tmp/.host-gitconfig ]; then
+# Check multiple paths: DinD mounts tmpfs over /tmp, hiding bind mounts there
+HOST_GITCONFIG=""
+for p in "$HOME/.host-gitconfig" /tmp/.host-gitconfig; do
+  [ -f "$p" ] && HOST_GITCONFIG="$p" && break
+done
+if [ -n "$HOST_GITCONFIG" ]; then
   echo "==> Copying host .gitconfig..."
-  cp /tmp/.host-gitconfig "$HOME/.gitconfig"
+  cp "$HOST_GITCONFIG" "$HOME/.gitconfig"
   chown "$CURRENT_USER:$CURRENT_GROUP" "$HOME/.gitconfig" 2>/dev/null || true
 fi
 
