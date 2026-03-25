@@ -70,11 +70,13 @@ source "$CONFIG_DIR/feature.env"
 DOMAIN="${TRAEFIK_DOMAIN:-$DEFAULT_DOMAIN}"
 
 # Fix: Docker bind mount may have created config files as directories
+# Also fix permissions on the config dir itself
 for f in "$CONFIG_DIR/dynamic.yml" "$CONFIG_DIR/traefik.yml"; do
   if [ -d "$f" ]; then
     sudo rm -rf "$f"
   fi
 done
+sudo chmod 777 "$CONFIG_DIR"
 
 # ── Generate traefik.yml (static config) ───────────────────────────────────
 cat > "$CONFIG_DIR/traefik.yml" <<'YAMLSTATIC'
