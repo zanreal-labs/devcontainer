@@ -1,6 +1,6 @@
 # devcontainer
 
-A modular, AI-first dev container for modern software development. A slim base image with an interactive setup wizard and opt-in features for the tools you actually use.
+A modular, AI-first dev container for modern software development. A slim base image with an interactive setup wizard that lets each developer pick their own tools.
 
 ## Why
 
@@ -9,7 +9,7 @@ AI coding agents (Claude Code, Gemini CLI, OpenCode, Codex) need a consistent, r
 This image is designed around three principles:
 
 1. **AI-first** — every major coding agent is available via the setup wizard
-2. **Modular** — slim base image, add only the tools you need via features or the wizard
+2. **Modular** — slim base image, pick only the tools you need on first start
 3. **Zero cache leakage** — build artifacts stay in the container, never pollute your host drive
 
 ## Quick start
@@ -21,62 +21,79 @@ Add a `devcontainer.json` to your project:
   "image": "ghcr.io/zanreal-labs/devcontainer:latest",
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": false },
-    "ghcr.io/devcontainers/features/node:1": { "version": "22" },
-    "ghcr.io/zanreal-labs/devcontainer/bun:1": {},
-    "ghcr.io/zanreal-labs/devcontainer/supabase-cli:1": {}
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" }
   },
   "postCreateCommand": "bash /usr/local/share/devcontainer/setup.sh"
 }
 ```
 
-Open in VS Code or any devcontainer-compatible editor. The setup wizard will run on first start and let you pick which AI agents and tools to install.
+Open in VS Code or any devcontainer-compatible editor. On first start, the setup wizard will guide you through selecting AI agents and tools.
 
 See [`examples/devcontainer.json`](examples/devcontainer.json) for a fully annotated configuration.
 
 ## What's included
 
-### Base image (always included)
+### Base image
 
-| Category | Tools |
-|----------|-------|
-| **TUI** | Interactive setup wizard ([gum](https://github.com/charmbracelet/gum)), tmux |
-| **Security** | GPG commit signing (macOS path fix), SSH agent forwarding, Docker credential isolation |
-| **System** | Custom CA certificate support, embedded setup & wizard scripts |
+| Component | Description |
+|-----------|-------------|
+| **Setup wizard** | Interactive TUI for picking tools on first container start |
+| **Setup script** | Auto-detects package manager, starts services, runs project hooks |
+| **GPG** | Commit signing with macOS path fix and loopback pinentry |
+| **SSH** | Agent forwarding from host |
+| **Docker credentials** | Pre-configured to avoid DinD credential errors |
+| **CA certificates** | Directory for custom corporate proxy certs |
+| **tmux** | Terminal multiplexer with default config |
 
 ### Setup wizard
 
-On first container start, the wizard presents an interactive menu for installing tools. Re-run anytime with `devcontainer-wizard --force`.
+The wizard runs automatically on first container start. It presents an interactive TUI (powered by [gum](https://github.com/charmbracelet/gum)) where you select which tools to install:
 
-**AI coding agents:** Claude Code, OpenCode, Gemini CLI (requires Node.js), OpenAI Codex (requires Node.js)
+```
+╔══════════════════════════════════════╗
+║                                      ║
+║   Dev Container Setup Wizard         ║
+║                                      ║
+║   Select the tools you want          ║
+║   installed.                         ║
+║   Use space to toggle, enter to      ║
+║   confirm.                           ║
+║                                      ║
+╚══════════════════════════════════════╝
 
-**Package managers:** bun, uv
+[ ] Claude Code
+[ ] OpenCode
+[ ] Gemini CLI
+[ ] OpenAI Codex
+[ ] bun
+[ ] uv
+[ ] Supabase CLI
+[ ] Tinybird CLI
+[ ] Stripe CLI
+[ ] GitHub CLI
+```
 
-**Infrastructure:** Supabase CLI, Tinybird CLI, Stripe CLI, GitHub CLI
+Re-run anytime with:
 
-For headless/CI environments, set `DEVCONTAINER_TOOLS` to skip the interactive prompt:
+```bash
+devcontainer-wizard --force
+```
+
+#### Headless / CI mode
+
+Skip the interactive prompt by setting `DEVCONTAINER_TOOLS`:
 
 ```jsonc
 "containerEnv": {
-  "DEVCONTAINER_TOOLS": "claude-code,bun,uv"
+  "DEVCONTAINER_TOOLS": "claude-code,bun,uv,supabase-cli"
 }
 ```
 
-### Optional features (add to `devcontainer.json`)
-
-| Feature | ID | Description |
-|---------|----|-------------|
-| **Bun** | `ghcr.io/zanreal-labs/devcontainer/bun:1` | Fast JavaScript runtime and package manager |
-| **uv** | `ghcr.io/zanreal-labs/devcontainer/uv:1` | Fast Python package manager and toolchain |
-| **Supabase CLI** | `ghcr.io/zanreal-labs/devcontainer/supabase-cli:1` | Local Supabase development stack |
-| **Stripe CLI** | `ghcr.io/zanreal-labs/devcontainer/stripe-cli:1` | Payment integration development |
-| **Tinybird CLI** | `ghcr.io/zanreal-labs/devcontainer/tinybird-cli:1` | Real-time analytics (auto-installs uv) |
-| **Traefik** | `ghcr.io/zanreal-labs/devcontainer/traefik:1` | Reverse proxy with subdomain routing |
-
-Features are installed at image build time and are available immediately. Use features for tools your project always needs, and the wizard for personal preferences.
+Available tool names: `claude-code`, `opencode`, `gemini-cli`, `openai-codex`, `bun`, `uv`, `supabase-cli`, `tinybird-cli`, `stripe-cli`, `github-cli`
 
 ## Traefik reverse proxy
 
-Route local dev servers through clean `.localhost` domains with automatic HTTPS.
+Route local dev servers through clean `.localhost` domains with automatic HTTPS. This is a devcontainer feature because it generates config at build time.
 
 ```jsonc
 "features": {
@@ -95,16 +112,14 @@ This produces:
 | `https://myapp.localhost` | `:3000` (web — default app) |
 | `https://api.myapp.localhost` | `:4000` |
 
-The `defaultApp` is served on the root domain. All other apps get `<name>.<domain>` subdomains. Requires Docker-in-Docker feature.
+The `defaultApp` is served on the root domain. All other apps get `<name>.<domain>` subdomains.
 
-Traefik starts automatically during setup. You can also manage it manually:
+Traefik starts automatically during setup. Manual control:
 
 ```bash
 traefik-start   # start the proxy
 traefik-stop    # stop the proxy
 ```
-
-### Options
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -112,9 +127,26 @@ traefik-stop    # stop the proxy
 | `routes` | `""` | Comma-separated `name:port` pairs |
 | `defaultApp` | `""` | App name served on the root domain |
 
+Requires the `docker-in-docker` feature. Works with any dev server (Next.js, Vite, etc.) running inside the container — Traefik routes via `host.docker.internal`.
+
+## Auto-detected setup
+
+The setup script runs automatically via `postCreateCommand`:
+
+| Signal | Action |
+|--------|--------|
+| `pnpm-lock.yaml` | Enables corepack, activates pnpm, runs `pnpm install` |
+| `bun.lock` / `bun.lockb` | Cleans stale symlinks, runs `bun install` |
+| `package-lock.json` | Runs `npm install` |
+| `yarn.lock` | Runs `yarn install` |
+| `supabase/config.toml` | Starts Supabase local dev stack |
+| `TINYBIRD=1` env var | Starts Tinybird local container |
+| Traefik feature installed | Starts Traefik reverse proxy |
+| `.devcontainer/post-setup.sh` | Runs project-specific setup |
+
 ## Cache isolation
 
-Dev containers bind-mount your workspace from the host. Without cache isolation, build artifacts end up on your local drive.
+Build artifacts stay inside the container, never on your host drive.
 
 | Cache | Strategy | Location | Lifetime |
 |-------|----------|----------|----------|
@@ -136,34 +168,35 @@ Dev containers bind-mount your workspace from the host. Without cache isolation,
 ```jsonc
 "mounts": [
   "source=${localEnv:HOME}/.gitconfig,target=/tmp/.host-gitconfig,type=bind,consistency=cached",
-  "source=${localEnv:HOME}/.gnupg,target=/home/vscode/.gnupg,type=bind,consistency=cached"
+  "source=${localEnv:HOME}/.gnupg,target=/tmp/.host-gnupg,type=bind,consistency=cached",
+  "source=${localEnv:HOME}/.ssh,target=/tmp/.host-ssh,type=bind,consistency=cached"
 ]
 ```
 
-SSH agent forwarding is handled automatically by VS Code. For CI or non-VS Code editors:
+The setup script copies these from `/tmp` staging mounts to `$HOME` with correct permissions. This avoids "Device busy" errors with direct bind mounts.
+
+SSH agent forwarding is handled automatically by VS Code. For non-VS Code editors:
 
 ```jsonc
-"source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,readonly"
+"containerEnv": { "SSH_AUTH_SOCK": "/tmp/ssh-agent.sock" },
+"mounts": [
+  "source=${localEnv:SSH_AUTH_SOCK},target=/tmp/ssh-agent.sock,type=bind"
+]
 ```
 
-## Auto-detected setup
+## Extending
 
-The embedded setup script (`/usr/local/share/devcontainer/setup.sh`) runs automatically:
+### Project-specific setup
 
-| Signal | Action |
-|--------|--------|
-| `pnpm-lock.yaml` | Enables corepack, activates pnpm, runs `pnpm install` |
-| `bun.lock` / `bun.lockb` | Cleans stale symlinks, runs `bun install` |
-| `package-lock.json` | Runs `npm install` |
-| `yarn.lock` | Runs `yarn install` |
-| `supabase/config.toml` | Starts Supabase local dev stack |
-| `TINYBIRD=1` env var | Starts Tinybird local container |
-| Traefik feature installed | Starts Traefik reverse proxy |
-| `.devcontainer/post-setup.sh` | Runs project-specific setup |
+Create `.devcontainer/post-setup.sh` — it runs automatically after the main setup:
 
-## Corporate / enterprise
+```bash
+#!/bin/bash
+docker compose up -d redis
+pnpm db:migrate
+```
 
-### Custom CA certificates
+### Custom CA certificates (corporate proxies)
 
 ```dockerfile
 FROM ghcr.io/zanreal-labs/devcontainer:latest
@@ -175,15 +208,6 @@ RUN update-ca-certificates
 
 ```jsonc
 "runArgs": ["--dns", "10.0.0.1", "--dns", "1.1.1.1"]
-```
-
-### Extending with post-setup.sh
-
-```bash
-#!/bin/bash
-# .devcontainer/post-setup.sh
-docker compose up -d redis
-pnpm db:migrate
 ```
 
 ## License
