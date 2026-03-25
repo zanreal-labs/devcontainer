@@ -10,6 +10,13 @@ CONFIG_DIR="/usr/local/share/traefik"
 
 mkdir -p "$CONFIG_DIR"
 
+# ── Save feature options for runtime use ─────────────────────────────────────
+cat > "$CONFIG_DIR/feature.env" <<ENV
+DEFAULT_DOMAIN="${DOMAIN}"
+ROUTES="${ROUTES}"
+DEFAULTAPP="${DEFAULTAPP}"
+ENV
+
 # ── Static config (traefik.yml) ──────────────────────────────────────────────
 cat > "$CONFIG_DIR/traefik.yml" <<'YAML'
 entryPoints:
@@ -29,20 +36,47 @@ providers:
     watch: true
 YAML
 
-# ── Dynamic config (dynamic.yml) ─────────────────────────────────────────────
+# ── Docker Compose ───────────────────────────────────────────────────────────
+cat > "$CONFIG_DIR/docker-compose.yml" <<YAML
+services:
+  traefik:
+    image: traefik:v3.3
+    container_name: devcontainer-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ${CONFIG_DIR}/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ${CONFIG_DIR}/dynamic.yml:/etc/traefik/dynamic.yml:ro
+YAML
+
+# ── Start script (generates dynamic.yml at runtime) ─────────────────────────
+cat > /usr/local/bin/traefik-start <<'SCRIPT'
+#!/bin/bash
+set -e
+
+CONFIG_DIR="/usr/local/share/traefik"
+source "$CONFIG_DIR/feature.env"
+
+# TRAEFIK_DOMAIN env var overrides the default domain
+DOMAIN="${TRAEFIK_DOMAIN:-$DEFAULT_DOMAIN}"
+
+# ── Generate dynamic.yml ─────────────────────────────────────────────────────
 {
   echo "http:"
   echo "  routers:"
 
   IFS=',' read -ra ROUTE_ARRAY <<< "$ROUTES"
   for route in "${ROUTE_ARRAY[@]}"; do
-    route="$(echo "$route" | xargs)"  # trim whitespace
+    route="$(echo "$route" | xargs)"
     [ -z "$route" ] && continue
     APP_NAME="${route%%:*}"
     APP_PORT="${route##*:}"
 
     if [ "$APP_NAME" = "$DEFAULTAPP" ]; then
-      # Default app gets root domain only
       cat <<BLOCK
     ${APP_NAME}:
       rule: "Host(\`${DOMAIN}\`)"
@@ -52,7 +86,6 @@ YAML
       tls: {}
 BLOCK
     else
-      # Non-default apps get subdomain
       cat <<BLOCK
     ${APP_NAME}:
       rule: "Host(\`${APP_NAME}.${DOMAIN}\`)"
@@ -82,34 +115,12 @@ BLOCK
   done
 } > "$CONFIG_DIR/dynamic.yml"
 
-# ── Docker Compose ───────────────────────────────────────────────────────────
-cat > "$CONFIG_DIR/docker-compose.yml" <<YAML
-services:
-  traefik:
-    image: traefik:v3.3
-    container_name: devcontainer-traefik
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - ${CONFIG_DIR}/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ${CONFIG_DIR}/dynamic.yml:/etc/traefik/dynamic.yml:ro
-YAML
-
-# ── Start script ─────────────────────────────────────────────────────────────
-cat > /usr/local/bin/traefik-start <<SCRIPT
-#!/bin/bash
-set -e
+# ── Start Traefik ────────────────────────────────────────────────────────────
 echo "Starting Traefik reverse proxy..."
-docker compose -f ${CONFIG_DIR}/docker-compose.yml up -d
+docker compose -f "$CONFIG_DIR/docker-compose.yml" up -d
 echo ""
-echo "  Routes:"
-SCRIPT
+echo "  Routes (domain: ${DOMAIN}):"
 
-# Add route info to start script
 for route in "${ROUTE_ARRAY[@]}"; do
   route="$(echo "$route" | xargs)"
   [ -z "$route" ] && continue
@@ -117,21 +128,22 @@ for route in "${ROUTE_ARRAY[@]}"; do
   APP_PORT="${route##*:}"
 
   if [ "$APP_NAME" = "$DEFAULTAPP" ]; then
-    echo "echo \"    https://${DOMAIN} → :${APP_PORT} (${APP_NAME})\"" >> /usr/local/bin/traefik-start
+    echo "    https://${DOMAIN} → :${APP_PORT} (${APP_NAME})"
   else
-    echo "echo \"    https://${APP_NAME}.${DOMAIN} → :${APP_PORT}\"" >> /usr/local/bin/traefik-start
+    echo "    https://${APP_NAME}.${DOMAIN} → :${APP_PORT}"
   fi
 done
-
+SCRIPT
 chmod +x /usr/local/bin/traefik-start
 
 # ── Stop script ──────────────────────────────────────────────────────────────
-cat > /usr/local/bin/traefik-stop <<SCRIPT
+cat > /usr/local/bin/traefik-stop <<'SCRIPT'
 #!/bin/bash
 set -e
 echo "Stopping Traefik..."
-docker compose -f ${CONFIG_DIR}/docker-compose.yml down
+docker compose -f /usr/local/share/traefik/docker-compose.yml down
 SCRIPT
 chmod +x /usr/local/bin/traefik-stop
 
-echo "Traefik configured for: ${DOMAIN}"
+echo "Traefik configured (default domain: ${DOMAIN})"
+echo "  Override at runtime with: TRAEFIK_DOMAIN=myapp.test"
