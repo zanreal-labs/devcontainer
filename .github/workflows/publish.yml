@@ -53,9 +53,10 @@ jobs:
         run: |
           npm install -g @anthropic-ai/claude-code
           PREV_TAG=$(git tag --sort=-v:refname | grep '^v' | sed -n '2p')
-          DIFF=$(git log --oneline "${PREV_TAG}..${TAG_NAME}" 2>/dev/null || git log --oneline -20)
+          REPO="${{ github.repository }}"
+          DIFF=$(git log --format="%H %s" "${PREV_TAG}..${TAG_NAME}" 2>/dev/null || git log --format="%H %s" -20)
           CHANGELOG=$(echo "$DIFF" | claude -p \
-            "Generate a concise changelog for release ${TAG_NAME} of a devcontainer project. Group changes by category (Features, Fixes, Docs, Chores). Use markdown with bullet points. No preamble, just the changelog. Here are the commits:" \
+            "Generate a concise changelog for release ${TAG_NAME} of a devcontainer project. Group changes by category (Features, Fixes, Docs, Chores). Use markdown with bullet points. For each item, link the short commit hash to https://github.com/${REPO}/commit/<full_hash>. No preamble, just the changelog. Here are the commits:" \
             --output-format text)
           {
             echo "body<<CHANGELOG_EOF"
@@ -67,4 +68,4 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ github.ref_name }}
-        run: gh release create "$TAG_NAME" --notes "${{ steps.changelog.outputs.body }}"
+        run: gh release create "$TAG_NAME" --title "$TAG_NAME" --notes "${{ steps.changelog.outputs.body }}"
