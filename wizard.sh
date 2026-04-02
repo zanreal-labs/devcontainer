@@ -41,6 +41,8 @@ if [ -n "${DEVCONTAINER_TOOLS:-}" ]; then
         command -v gemini &>/dev/null || { echo "  Installing Gemini CLI..."; npm install -g @google/gemini-cli 2>/dev/null; } ;;
       openai-codex)
         command -v codex &>/dev/null || { echo "  Installing OpenAI Codex..."; npm install -g @openai/codex 2>/dev/null; } ;;
+      forgecode)
+        command -v forge &>/dev/null || { echo "  Installing ForgeCode..."; curl -fsSL https://forgecode.dev/cli | sh 2>/dev/null; } ;;
       opencode)
         command -v opencode &>/dev/null || { echo "  Installing OpenCode..."; curl -fsSL https://opencode.ai/install | bash 2>/dev/null; } ;;
       bun)
@@ -108,7 +110,7 @@ gum style \
 OPTIONS=()
 
 # AI Agents
-OPTIONS+=("Claude Code" "OpenCode")
+OPTIONS+=("Claude Code" "ForgeCode" "OpenCode")
 command -v npm &>/dev/null && OPTIONS+=("Gemini CLI" "OpenAI Codex")
 
 # Package Managers
@@ -124,7 +126,7 @@ CHOICES=$(gum choose --no-limit \
   --cursor-prefix "[ ] " \
   --selected-prefix "[x] " \
   --unselected-prefix "[ ] " \
-  --header "AI: Claude/OpenCode/Gemini/Codex | Pkg: bun/uv | Infra: Supabase/Tinybird/Stripe/GH" \
+  --header "AI: Claude/Forge/OpenCode/Gemini/Codex | Pkg: bun/uv | Infra: Supabase/Tinybird/Stripe/GH" \
   "${OPTIONS[@]}") || true
 
 if [ -z "$CHOICES" ]; then
@@ -196,6 +198,10 @@ while IFS= read -r tool; do
     "OpenAI Codex")
       install_tool "OpenAI Codex" "codex" \
         "npm install -g @openai/codex"
+      ;;
+    "ForgeCode")
+      install_tool "ForgeCode" "forge" \
+        "curl -fsSL https://forgecode.dev/cli | sh"
       ;;
     "OpenCode")
       install_tool "OpenCode" "opencode" \

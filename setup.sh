@@ -157,6 +157,7 @@ echo ""
 
 echo "  AI Agents"
 command -v claude &>/dev/null && printf "    %-12s %s\n" "claude" "$(claude --version 2>/dev/null)"
+command -v forge &>/dev/null && printf "    %-12s %s\n" "forge" "$(forge --version 2>/dev/null)"
 command -v gemini &>/dev/null && printf "    %-12s %s\n" "gemini" "$(gemini --version 2>/dev/null | head -1)"
 command -v codex &>/dev/null && printf "    %-12s %s\n" "codex" "$(codex --version 2>/dev/null)"
 command -v opencode &>/dev/null && printf "    %-12s %s\n" "opencode" "$(opencode version 2>/dev/null)"

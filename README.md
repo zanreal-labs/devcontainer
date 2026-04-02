@@ -4,7 +4,7 @@ A modular, AI-first dev container for modern software development. A slim base i
 
 ## Why
 
-AI coding agents (Claude Code, Gemini CLI, OpenCode, Codex) need a consistent, reproducible environment to work effectively. When agents run in inconsistent local setups, they hit missing tools, broken PATHs, and permission errors. Dev containers solve this by giving every developer — and every AI agent — the same deterministic environment.
+AI coding agents (Claude Code, ForgeCode, Gemini CLI, OpenCode, Codex) need a consistent, reproducible environment to work effectively. When agents run in inconsistent local setups, they hit missing tools, broken PATHs, and permission errors. Dev containers solve this by giving every developer — and every AI agent — the same deterministic environment.
 
 This image is designed around three principles:
 
@@ -62,6 +62,7 @@ The wizard runs automatically on first container start. It presents an interacti
 ╚══════════════════════════════════════╝
 
 [ ] Claude Code
+[ ] ForgeCode
 [ ] OpenCode
 [ ] Gemini CLI
 [ ] OpenAI Codex
@@ -89,7 +90,7 @@ Skip the interactive prompt by setting `DEVCONTAINER_TOOLS`:
 }
 ```
 
-Available tool names: `claude-code`, `opencode`, `gemini-cli`, `openai-codex`, `bun`, `uv`, `supabase-cli`, `tinybird-cli`, `stripe-cli`, `github-cli`
+Available tool names: `claude-code`, `forgecode`, `opencode`, `gemini-cli`, `openai-codex`, `bun`, `uv`, `supabase-cli`, `tinybird-cli`, `stripe-cli`, `github-cli`
 
 ## Traefik reverse proxy
 
