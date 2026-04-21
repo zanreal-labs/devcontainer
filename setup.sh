@@ -142,7 +142,16 @@ fi
 # per-workspace trust dialog. Env vars alone (ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL)
 # are not enough — Claude Code still runs onboarding when ~/.claude.json is missing
 # and when `theme` is unset.
-if command -v claude &>/dev/null; then
+#
+# The native installer drops the binary at ~/.local/bin/claude, which is not on
+# the non-interactive PATH that setup.sh inherits. We check several known
+# locations instead of relying on `command -v claude`.
+CLAUDE_BIN=""
+for p in "$HOME/.local/bin/claude" "$HOME/.claude/local/claude" "$(command -v claude 2>/dev/null)"; do
+  [ -n "$p" ] && [ -x "$p" ] && CLAUDE_BIN="$p" && break
+done
+
+if [ -n "$CLAUDE_BIN" ] || [ -d "$HOME/.claude" ]; then
   CLAUDE_JSON="$HOME/.claude.json"
   WORKDIR_ABS="$(pwd)"
   if [ ! -f "$CLAUDE_JSON" ]; then
