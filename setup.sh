@@ -137,6 +137,51 @@ if [ ! -f "$HOME/.devcontainer-wizard-done" ]; then
   fi
 fi
 
+# ── Claude Code onboarding bypass ───────────────────────────────────────────
+# Skip the first-run wizard (Claude subscription / API key / Bedrock) and the
+# per-workspace trust dialog. Env vars alone (ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL)
+# are not enough — Claude Code still runs onboarding when ~/.claude.json is missing
+# and when `theme` is unset.
+if command -v claude &>/dev/null; then
+  CLAUDE_JSON="$HOME/.claude.json"
+  WORKDIR_ABS="$(pwd)"
+  if [ ! -f "$CLAUDE_JSON" ]; then
+    echo "==> Seeding ~/.claude.json to skip Claude Code onboarding..."
+    cat > "$CLAUDE_JSON" <<EOF
+{
+  "theme": "dark",
+  "hasCompletedOnboarding": true,
+  "numStartups": 1,
+  "projects": {
+    "$WORKDIR_ABS": {
+      "hasTrustDialogAccepted": true,
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "projectOnboardingSeenCount": 1
+    }
+  }
+}
+EOF
+    chown "$CURRENT_USER:$CURRENT_GROUP" "$CLAUDE_JSON" 2>/dev/null || true
+  else
+    # File exists (e.g. bind-mounted from host or created during a prior run).
+    # Ensure the current workspace is marked trusted so trust prompts don't block.
+    if command -v jq &>/dev/null; then
+      TMP="$(mktemp)"
+      jq --arg dir "$WORKDIR_ABS" '
+        .theme = (.theme // "dark")
+        | .hasCompletedOnboarding = true
+        | .projects = (.projects // {})
+        | .projects[$dir] = (
+            (.projects[$dir] // {})
+            + { hasTrustDialogAccepted: true, projectOnboardingSeenCount: 1 }
+          )
+      ' "$CLAUDE_JSON" > "$TMP" && mv "$TMP" "$CLAUDE_JSON"
+      chown "$CURRENT_USER:$CURRENT_GROUP" "$CLAUDE_JSON" 2>/dev/null || true
+    fi
+  fi
+fi
+
 # ── Project-specific hook ────────────────────────────────────────────────────
 if [ -f ".devcontainer/post-setup.sh" ]; then
   echo "==> Running project-specific post-setup..."
