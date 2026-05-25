@@ -54,7 +54,7 @@ if [ -n "${DEVCONTAINER_TOOLS:-}" ]; then
           echo "  Installing Supabase CLI..."
           ARCH=$(uname -m); [ "$ARCH" = "aarch64" ] && ARCH="arm64"; [ "$ARCH" = "x86_64" ] && ARCH="amd64"
           curl -fsSL "https://github.com/supabase/cli/releases/latest/download/supabase_linux_${ARCH}.tar.gz" -o /tmp/supabase.tar.gz
-          sudo tar -xzf /tmp/supabase.tar.gz -C /usr/local/bin supabase && rm /tmp/supabase.tar.gz
+          sudo tar -xzf /tmp/supabase.tar.gz -C /usr/local/bin && rm /tmp/supabase.tar.gz
         } ;;
       tinybird-cli)
         command -v tb &>/dev/null || {
@@ -217,7 +217,7 @@ while IFS= read -r tool; do
       ;;
     "Supabase CLI")
       install_tool "Supabase CLI" "supabase" \
-        'ARCH=$(uname -m); [ "$ARCH" = "aarch64" ] && ARCH="arm64"; [ "$ARCH" = "x86_64" ] && ARCH="amd64"; curl -fsSL "https://github.com/supabase/cli/releases/latest/download/supabase_linux_${ARCH}.tar.gz" -o /tmp/supabase.tar.gz && sudo tar -xzf /tmp/supabase.tar.gz -C /usr/local/bin supabase && rm /tmp/supabase.tar.gz'
+        'ARCH=$(uname -m); [ "$ARCH" = "aarch64" ] && ARCH="arm64"; [ "$ARCH" = "x86_64" ] && ARCH="amd64"; curl -fsSL "https://github.com/supabase/cli/releases/latest/download/supabase_linux_${ARCH}.tar.gz" -o /tmp/supabase.tar.gz && sudo tar -xzf /tmp/supabase.tar.gz -C /usr/local/bin && rm /tmp/supabase.tar.gz'
       ;;
     "Tinybird CLI")
       install_tool "Tinybird CLI" "tb" \
