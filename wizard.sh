@@ -50,12 +50,12 @@ if [ -n "${DEVCONTAINER_TOOLS:-}" ]; then
       uv)
         command -v uv &>/dev/null || { echo "  Installing uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh 2>/dev/null; } ;;
       supabase-cli)
-        command -v supabase &>/dev/null || {
+        if ! command -v supabase &>/dev/null || ! command -v supabase-go &>/dev/null; then
           echo "  Installing Supabase CLI..."
           ARCH=$(uname -m); [ "$ARCH" = "aarch64" ] && ARCH="arm64"; [ "$ARCH" = "x86_64" ] && ARCH="amd64"
           curl -fsSL "https://github.com/supabase/cli/releases/latest/download/supabase_linux_${ARCH}.tar.gz" -o /tmp/supabase.tar.gz
           sudo tar -xzf /tmp/supabase.tar.gz -C /usr/local/bin && rm /tmp/supabase.tar.gz
-        } ;;
+        fi ;;
       tinybird-cli)
         command -v tb &>/dev/null || {
           echo "  Installing Tinybird CLI..."
