@@ -49,7 +49,7 @@ chmod 666 "$CONFIG_DIR/traefik.yml"
 cat > "$CONFIG_DIR/docker-compose.yml" <<YAML
 services:
   traefik:
-    image: traefik:v3.3
+    image: traefik:v3.7
     container_name: devcontainer-traefik
     restart: unless-stopped
     ports:
