@@ -1,0 +1,131 @@
+---
+title: devcontainer
+description: A slim, AI-first dev container base image with an interactive setup wizard, so every developer and every coding agent starts from the same environment.
+---
+
+`ghcr.io/zanreal-labs/devcontainer` is a dev container base image built for
+projects where AI coding agents do real work. It is deliberately small: a Debian
+bookworm base, a handful of fixes that make Git signing and Docker-in-Docker
+behave, and an interactive wizard that installs the tools each developer
+actually wants on first container start.
+
+The reasoning is simple. Agents like Claude Code, OpenCode, Gemini CLI or Codex
+break in interesting ways when they meet a missing binary, a `PATH` that does
+not include `~/.local/bin`, or a GPG agent that cannot prompt for a passphrase.
+A container fixes that once, for everyone.
+
+## Quick start
+
+Add a `devcontainer.json` to your project:
+
+```jsonc title=".devcontainer/devcontainer.json"
+{
+  "image": "ghcr.io/zanreal-labs/devcontainer:latest",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": false },
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" },
+  },
+  "postCreateCommand": "bash /usr/local/share/devcontainer/setup.sh",
+}
+```
+
+Open the folder in VS Code or any devcontainer-compatible editor. The
+`postCreateCommand` runs the setup script, which prepares credentials, installs
+your dependencies, and - on the very first start - launches the wizard.
+
+> [!WARNING]
+> `postCreateCommand` is not optional. Everything described on these pages -
+> credential forwarding, dependency install, the wizard, service startup - lives
+> in `setup.sh`. Without that line the image is just Debian with `tmux` on it.
+
+The repository ships a fully annotated
+[`examples/devcontainer.json`](https://github.com/zanreal-labs/devcontainer/blob/main/examples/devcontainer.json)
+covering mounts, cache volumes and SSH forwarding.
+
+## What the base image ships
+
+| Component                | What it does                                                                                          |
+| ------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `setup.sh`               | The lifecycle script at `/usr/local/share/devcontainer/setup.sh`                                      |
+| `wizard.sh`              | The tool picker, also on `PATH` as `devcontainer-wizard`                                              |
+| `gum`                    | Charmbracelet's TUI toolkit, used to render the wizard                                                |
+| `tmux`                   | Installed with a preconfigured `~/.tmux.conf`                                                         |
+| GPG symlink              | `/usr/local/bin/gpg` → `/usr/bin/gpg`, so a macOS `.gitconfig` keeps working                          |
+| Docker credentials       | `~/.docker/config.json` with an empty `credsStore`, avoiding credential errors under Docker-in-Docker |
+| CA certificate directory | `/usr/local/share/ca-certificates/extra` for corporate proxy certs                                    |
+| `PATH` entry             | `$HOME/.local/bin` appended to both `.bashrc` and `.zshrc`                                            |
+
+The image runs as the non-root `vscode` user inherited from
+`mcr.microsoft.com/devcontainers/base:bookworm`, and is published for both
+`linux/amd64` and `linux/arm64`.
+
+### What it deliberately does not ship
+
+No Node.js, no package managers, no AI agents. Those come from devcontainer
+features (compiled into the image at build time) or from the wizard (installed
+into the running container). Keeping them out of the base means the image stays
+small and nobody carries five agent CLIs they never open.
+
+The `node` feature in the quick start above is what puts Node on `PATH`. If you
+omit it, the health check at the end of setup will print `node MISSING`.
+
+## The setup wizard
+
+On the first container start the wizard renders an interactive checklist. Toggle
+entries with space, confirm with enter:
+
+```text
+[ ] Claude Code
+[ ] ForgeCode
+[ ] OpenCode
+[ ] Gemini CLI
+[ ] OpenAI Codex
+[ ] bun
+[ ] uv
+[ ] Supabase CLI
+[ ] Tinybird CLI
+[ ] Stripe CLI
+[ ] GitHub CLI
+```
+
+Two entries in that list are conditional. Gemini CLI and OpenAI Codex install
+through npm, so they only appear when `npm` is already on `PATH` - add the
+`node` feature first. GitHub CLI is hidden when `gh` is already installed.
+
+Selections are written to `~/.devcontainer-selections`, and `~/.devcontainer-wizard-done`
+marks the wizard as complete so it does not reappear on every rebuild. Run it
+again whenever you want:
+
+```bash
+devcontainer-wizard --force
+```
+
+If an install fails, the wizard prints `[fail]` next to the tool and keeps
+going. The full output is in `/tmp/devcontainer-wizard.log`.
+
+### Headless and CI
+
+An interactive TUI is useless in CI, and the wizard knows it: with no TTY it
+prints a hint and exits without blocking the build. To install a fixed set of
+tools instead, set `DEVCONTAINER_TOOLS`:
+
+```jsonc
+"containerEnv": {
+  "DEVCONTAINER_TOOLS": "claude-code,bun,uv,supabase-cli"
+}
+```
+
+Valid identifiers:
+
+`claude-code`, `forgecode`, `opencode`, `gemini-cli`, `openai-codex`, `bun`,
+`uv`, `supabase-cli`, `tinybird-cli`, `stripe-cli`, `github-cli`
+
+The variable takes priority over the interactive path, so a container with it
+set never prompts.
+
+## Where to go next
+
+- **[Features](./features.en.mdx)** - the ten devcontainer features published
+  alongside the image, including the Traefik reverse proxy.
+- **[Configuration](./configuration.en.mdx)** - what `setup.sh` does on every
+  start: credentials, dependency install, services, and the project hook.

@@ -1,0 +1,133 @@
+---
+title: devcontainer
+description: Lekki obraz bazowy dev containera z kreatorem narzędzi. To samo środowisko pracy dla całego zespołu i dla agentów AI.
+---
+
+`ghcr.io/zanreal-labs/devcontainer` to obraz bazowy dev containera dla zespołów,
+w których nad kodem pracują również agenci AI. Zamiast upychać w nim wszystko,
+co komukolwiek może się przydać, obraz zostawia wybór narzędzi deweloperowi:
+przy pierwszym starcie kontenera uruchamia się kreator, w którym zaznaczasz to,
+czego faktycznie używasz.
+
+Powód jest prozaiczny. Claude Code, OpenCode, Gemini CLI czy Codex potrafią się
+wyłożyć na brakującym binarium, na `PATH` bez `~/.local/bin` albo na agencie
+GPG, który nie ma jak zapytać o hasło do klucza. W kontenerze załatwiasz to raz,
+dla wszystkich.
+
+## Pierwsze uruchomienie
+
+Wystarczy plik `devcontainer.json` w repozytorium:
+
+```jsonc title=".devcontainer/devcontainer.json"
+{
+  "image": "ghcr.io/zanreal-labs/devcontainer:latest",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": false },
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" },
+  },
+  "postCreateCommand": "bash /usr/local/share/devcontainer/setup.sh",
+}
+```
+
+Otwórz katalog w VS Code albo w dowolnym edytorze obsługującym dev containery.
+Polecenie z `postCreateCommand` przygotuje poświadczenia, zainstaluje zależności
+projektu, a przy pierwszym starcie odpali kreator.
+
+> [!WARNING]
+> `postCreateCommand` nie jest opcjonalne. Cała logika, którą opisujemy w tej
+> dokumentacji, siedzi w `setup.sh`. Bez tej linijki zostaje Ci goły Debian z
+> tmuxem.
+
+Pełny, skomentowany przykład konfiguracji, razem z wolumenami i przekazywaniem
+kluczy SSH, znajdziesz w repozytorium:
+[`examples/devcontainer.json`](https://github.com/zanreal-labs/devcontainer/blob/main/examples/devcontainer.json).
+
+## Kreator narzędzi
+
+Przy pierwszym starcie kontenera pojawia się lista do zaznaczenia. Spacja
+przełącza pozycję, enter zatwierdza wybór:
+
+```text
+[ ] Claude Code
+[ ] ForgeCode
+[ ] OpenCode
+[ ] Gemini CLI
+[ ] OpenAI Codex
+[ ] bun
+[ ] uv
+[ ] Supabase CLI
+[ ] Tinybird CLI
+[ ] Stripe CLI
+[ ] GitHub CLI
+```
+
+Dwie pozycje pojawiają się warunkowo. Gemini CLI i OpenAI Codex instalują się
+przez npm, więc widać je tylko wtedy, gdy `npm` jest już w `PATH` - dodaj
+wcześniej feature `node`. GitHub CLI z kolei znika z listy, jeśli `gh` jest już
+zainstalowany.
+
+Wybór zapisuje się w `~/.devcontainer-selections`, a plik
+`~/.devcontainer-wizard-done` pilnuje, żeby kreator nie wyskakiwał przy każdej
+przebudowie kontenera. Kiedy zechcesz coś dołożyć:
+
+```bash
+devcontainer-wizard --force
+```
+
+Nieudana instalacja nie przerywa całej reszty - kreator oznaczy narzędzie jako
+`[fail]` i przejdzie do następnego. Pełne logi lądują w
+`/tmp/devcontainer-wizard.log`.
+
+### Bez interakcji, na przykład w CI
+
+Kreator sprawdza, czy w ogóle ma z kim rozmawiać. Bez terminala wypisuje
+podpowiedź i kończy działanie, więc nie zablokuje pipeline'u. Jeżeli zestaw
+narzędzi ma być z góry ustalony, podaj go w zmiennej `DEVCONTAINER_TOOLS`:
+
+```jsonc
+"containerEnv": {
+  "DEVCONTAINER_TOOLS": "claude-code,bun,uv,supabase-cli"
+}
+```
+
+Rozpoznawane nazwy:
+
+`claude-code`, `forgecode`, `opencode`, `gemini-cli`, `openai-codex`, `bun`,
+`uv`, `supabase-cli`, `tinybird-cli`, `stripe-cli`, `github-cli`
+
+Zmienna ma pierwszeństwo przed trybem interaktywnym. Jeśli ją ustawisz, kreator
+o nic nie zapyta.
+
+## Co znajdziesz w obrazie bazowym
+
+| Składnik                  | Do czego służy                                                                                |
+| ------------------------- | --------------------------------------------------------------------------------------------- |
+| `setup.sh`                | Skrypt cyklu życia, leży w `/usr/local/share/devcontainer/setup.sh`                           |
+| `wizard.sh`               | Kreator narzędzi, w `PATH` widoczny jako `devcontainer-wizard`                                |
+| `gum`                     | Biblioteka TUI od Charmbracelet, na niej zbudowany jest kreator                               |
+| `tmux`                    | Zainstalowany razem z gotowym `~/.tmux.conf`                                                  |
+| Dowiązanie do GPG         | `/usr/local/bin/gpg` → `/usr/bin/gpg`, dzięki czemu `.gitconfig` z macOS działa bez poprawek  |
+| Poświadczenia Dockera     | `~/.docker/config.json` z pustym `credsStore`, co usuwa błędy logowania przy Docker-in-Docker |
+| Katalog na certyfikaty CA | `/usr/local/share/ca-certificates/extra`, na certyfikaty firmowego proxy                      |
+| Wpis w `PATH`             | `$HOME/.local/bin` dopisany do `.bashrc` i `.zshrc`                                           |
+
+Obraz dziedziczy użytkownika `vscode` po
+`mcr.microsoft.com/devcontainers/base:bookworm` i nie pracuje na koncie roota.
+Publikowany jest równolegle dla `linux/amd64` i `linux/arm64`.
+
+### Czego w nim nie ma
+
+Nie ma Node.js, menedżerów pakietów ani żadnego agenta AI. To nie przeoczenie -
+te rzeczy dokłada się albo feature'ami na etapie budowania obrazu, albo
+kreatorem już w działającym kontenerze. Dzięki temu obraz zostaje mały, a nikt
+nie ciągnie za sobą pięciu agentów, z których używa jednego.
+
+Node w przykładzie powyżej pochodzi z oficjalnego feature'a `node`. Jeśli go
+pominiesz, podsumowanie na końcu instalacji wypisze `node MISSING`.
+
+## Co dalej
+
+- **[Feature'y](./features.pl.mdx)** - dziesięć feature'ów publikowanych razem z
+  obrazem, w tym reverse proxy na Traefiku.
+- **[Konfiguracja](./configuration.pl.mdx)** - co robi `setup.sh` przy każdym
+  starcie: klucze, zależności, usługi i własny hook projektu.

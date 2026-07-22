@@ -1,0 +1,5 @@
+{
+  "title": "devcontainer",
+  "description": "AI-first dev container base image with an interactive setup wizard.",
+  "pages": ["index", "features", "configuration"]
+}

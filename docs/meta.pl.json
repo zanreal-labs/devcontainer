@@ -1,0 +1,5 @@
+{
+  "title": "devcontainer",
+  "description": "Obraz bazowy dev containera dla zespołów pracujących z agentami AI.",
+  "pages": ["index", "features", "configuration"]
+}

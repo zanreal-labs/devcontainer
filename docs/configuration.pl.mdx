@@ -1,0 +1,189 @@
+---
+title: Konfiguracja
+description: "Co robi setup.sh przy starcie kontenera: klucze z hosta, instalacja zależności, uruchamianie usług, izolacja cache i własne hooki projektu."
+---
+
+Wszystko, co dzieje się po utworzeniu kontenera, opisuje jeden plik:
+`/usr/local/share/devcontainer/setup.sh`, podpięty przez `postCreateCommand`.
+Ta strona tłumaczy, co ten skrypt po kolei robi z Twoim projektem.
+
+## Kolejność działań
+
+1. Ustala, na jakim koncie faktycznie działa.
+2. Przenosi z hosta konfigurację Gita, klucze SSH i GPG.
+3. Naprawia właściciela zamontowanych wolumenów.
+4. Instaluje zależności menedżerem pakietów pasującym do lockfile'a.
+5. Podnosi usługi, na które projekt wskazuje swoją strukturą.
+6. Uruchamia kreator, o ile jeszcze nie był uruchamiany.
+7. Wycisza pytania, którymi Claude Code wita użytkownika przy pierwszym starcie.
+8. Odpala `.devcontainer/post-setup.sh`, jeśli taki plik istnieje.
+9. Wypisuje podsumowanie wersji zainstalowanych narzędzi.
+
+Punkty 2, 4, 5 i 7 mają swoje pułapki, więc omawiamy je osobno.
+
+## Konto, na którym pracuje skrypt
+
+Nazwa użytkownika pobierana jest z `id -un`, a nie zapisana na sztywno jako
+`vscode`. Zed potrafi wykonać polecenia cyklu życia na koncie roota, mimo
+ustawionego `remoteUser`, a od tego zależy każdy późniejszy `chown`.
+
+## Git, SSH i GPG z hosta
+
+Poświadczenia montowane są jako bind mounty pod `/tmp`, a dopiero potem
+kopiowane do `$HOME`. Kopiowanie nie jest tu zbędnym krokiem: montowanie
+`~/.ssh` czy `~/.gnupg` wprost do katalogu domowego kończy się błędami
+`Device busy` i uprawnieniami, których te narzędzia nie akceptują.
+
+```jsonc
+"mounts": [
+  "source=${localEnv:HOME}/.gitconfig,target=/tmp/.host-gitconfig,type=bind,consistency=cached",
+  "source=${localEnv:HOME}/.gnupg,target=/tmp/.host-gnupg,type=bind,consistency=cached",
+  "source=${localEnv:HOME}/.ssh,target=/tmp/.host-ssh,type=bind,consistency=cached"
+]
+```
+
+Klucze prywatne dostają uprawnienia `0600`, klucze publiczne i `known_hosts`
+`0644`, a sam katalog `0700`. Przy GPG skrypt dodatkowo ubija i podnosi
+`gpg-agent`, dopisuje `allow-loopback-pinentry` oraz `pinentry-mode loopback` do
+konfiguracji i eksportuje `GPG_TTY` w obu plikach startowych powłoki. Bez tego
+zestawu podpisywanie commitów w terminalu bez graficznego pinentry po prostu
+nie działa.
+
+> [!NOTE]
+> Docker-in-Docker montuje tmpfs na `/tmp`, przez co bind mounty umieszczone w
+> tym katalogu przestają być widoczne. Dlatego skrypt najpierw szuka pliku pod
+> `$HOME/.host-gitconfig`, a dopiero potem sięga po `/tmp/.host-gitconfig`.
+
+VS Code przekazuje agenta SSH samodzielnie. W innych edytorach trzeba to
+wskazać wprost:
+
+```jsonc
+"containerEnv": { "SSH_AUTH_SOCK": "/tmp/ssh-agent.sock" },
+"mounts": [
+  "source=${localEnv:SSH_AUTH_SOCK},target=/tmp/ssh-agent.sock,type=bind"
+]
+```
+
+## Zależności projektu
+
+O menedżerze pakietów decyduje lockfile. Liczy się pierwsze trafienie:
+
+| Plik                       | Co się dzieje                                                                         |
+| -------------------------- | ------------------------------------------------------------------------------------- |
+| `pnpm-lock.yaml`           | Włączenie corepack, aktywacja pnpm, `pnpm install`                                    |
+| `bun.lock` lub `bun.lockb` | Usunięcie zagnieżdżonych, nieaktualnych katalogów `node_modules`, potem `bun install` |
+| `package-lock.json`        | `npm install`                                                                         |
+| `yarn.lock`                | `yarn install`                                                                        |
+
+Jeżeli odpowiedniego narzędzia nie ma w kontenerze, skrypt to zgłasza i idzie
+dalej, zamiast wywalać całą instalację. Przy pnpm i bunie w komunikacie
+znajdziesz podpowiedź, żeby uruchomić `devcontainer-wizard`.
+
+Wcześniej skrypt poprawia jeszcze właściciela katalogu `node_modules` oraz
+katalogów `.next` do trzech poziomów w głąb projektu. Docker tworzy wolumeny na
+koncie roota, więc bez tej poprawki pierwsza instalacja kończy się błędem
+uprawnień.
+
+## Usługi
+
+| Warunek                                         | Efekt                                                   |
+| ----------------------------------------------- | ------------------------------------------------------- |
+| `supabase/config.toml` i dostępne Supabase CLI  | `supabase stop --no-backup`, następnie `supabase start` |
+| `TINYBIRD=1` i dostępny Docker                  | Kontener `tinybird-local` na porcie `7181`              |
+| Zainstalowany feature Traefik i dostępny Docker | `traefik-start`                                         |
+
+Każdy warunek wymaga jednocześnie sygnału z projektu i obecnego narzędzia.
+Projekt z konfiguracją Supabase otwarty w kontenerze bez CLI po prostu pominie
+ten krok.
+
+## Claude Code bez pytań na start
+
+Jeśli Claude Code jest zainstalowany, skrypt zapisuje `~/.claude.json` z
+ustawionym motywem, `hasCompletedOnboarding` oraz wpisem oznaczającym bieżący
+katalog jako zaufany. Bez tego Claude Code pokazuje kreator pierwszego
+uruchomienia i pyta o zaufanie do katalogu nawet wtedy, gdy `ANTHROPIC_API_KEY`
+jest ustawiony, co blokuje każde użycie nieinteraktywne.
+
+Gdy plik już istnieje, na przykład dlatego, że został zamontowany z hosta,
+skrypt nie nadpisuje go w całości. Modyfikuje go przez `jq` i dokłada wyłącznie
+wpis o zaufaniu do bieżącego katalogu.
+
+## Własny krok w projekcie
+
+Plik `.devcontainer/post-setup.sh` uruchamia się na końcu, po wszystkich
+powyższych krokach:
+
+```bash title=".devcontainer/post-setup.sh"
+#!/bin/bash
+docker compose up -d redis
+pnpm db:migrate
+```
+
+Na sam koniec skrypt wypisuje, co realnie znalazło się w `PATH`: środowiska
+uruchomieniowe, agentów AI i narzędzia infrastrukturalne wraz z wersjami. Napis
+`node MISSING` w tym miejscu oznacza, że w konfiguracji zabrakło feature'a
+`node`.
+
+## Izolacja cache
+
+Wyniki budowania powinny zostawać w kontenerze, a nie zaśmiecać dysk hosta
+przez bind mount. To konwencja po Twojej stronie, obraz niczego tu nie narzuca.
+Przykładowa konfiguracja z repozytorium rozwiązuje to tak:
+
+| Cache          | Sposób                                  | Czas życia             |
+| -------------- | --------------------------------------- | ---------------------- |
+| `node_modules` | Nazwany wolumen Dockera                 | Przeżywa przebudowę    |
+| `.next`        | Anonimowy wolumen Dockera               | Znika przy przebudowie |
+| Turborepo      | `TURBO_CACHE_DIR=/tmp/.turbo`           | Znika przy przebudowie |
+| Bun            | `BUN_INSTALL_CACHE_DIR=/tmp/.bun-cache` | Znika przy przebudowie |
+
+```jsonc
+"containerEnv": {
+  "TURBO_CACHE_DIR": "/tmp/.turbo",
+  "BUN_INSTALL_CACHE_DIR": "/tmp/.bun-cache"
+},
+"mounts": [
+  "source=moj-projekt-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
+  "target=${containerWorkspaceFolder}/apps/web/.next,type=volume"
+]
+```
+
+Najwięcej daje nazwany wolumen na `node_modules`. W dużym monorepo instalacja
+zależności od zera przy każdej przebudowie jest najdłuższym elementem całego
+cyklu. Wolumeny anonimowe, czyli zapisane bez `source`, kasują się razem z
+kontenerem.
+
+## Rozszerzanie obrazu
+
+### Certyfikaty firmowego proxy
+
+Katalog `/usr/local/share/ca-certificates/extra` powstaje w obrazie właśnie po
+to:
+
+```dockerfile
+FROM ghcr.io/zanreal-labs/devcontainer:latest
+COPY moj-firmowy-ca.crt /usr/local/share/ca-certificates/extra/
+RUN update-ca-certificates
+```
+
+### Własne DNS
+
+```jsonc
+"runArgs": ["--dns", "10.0.0.1", "--dns", "1.1.1.1"]
+```
+
+## Tagi obrazu
+
+Wydanie powstaje po wypchnięciu tagu `v*`. Ten sam przebieg buduje obraz na obie
+architektury i publikuje feature'y.
+
+| Tag      | Za czym podąża                      |
+| -------- | ----------------------------------- |
+| `latest` | Najnowsze wydanie                   |
+| `1.2.0`  | Dokładnie ta wersja                 |
+| `1.2`    | Wydania patch w obrębie `1.2`       |
+| `1`      | Wydania minor i patch w obrębie `1` |
+
+Wersjonowanie jest semantyczne: patch przy podbiciu wersji narzędzi i
+poprawkach, minor przy nowych narzędziach, major przy zmianach łamiących obraz
+bazowy albo interfejs `setup.sh`.

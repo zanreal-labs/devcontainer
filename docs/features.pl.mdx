@@ -1,0 +1,137 @@
+---
+title: Feature'y
+description: "Dziesięć feature'ów dev containera publikowanych razem z obrazem: agenci AI, menedżery pakietów, CLI usług oraz Traefik z routingiem po subdomenach."
+---
+
+Feature'y to drugi, obok kreatora, sposób dokładania narzędzi do kontenera.
+Różnica sprowadza się do momentu instalacji: feature wchodzi do obrazu podczas
+budowania, kreator dopiero po jego uruchomieniu.
+
+|                     | Feature                          | Kreator                                             |
+| ------------------- | -------------------------------- | --------------------------------------------------- |
+| Kiedy się instaluje | Przy budowaniu obrazu            | Przy pierwszym starcie kontenera                    |
+| Dla kogo            | Dla każdego, kto otworzy projekt | Dla konkretnego dewelopera                          |
+| Przy przebudowie    | Zostaje w warstwie obrazu        | Instaluje się od nowa, jeśli znacznik nie przetrwał |
+| Sprawdza się przy   | CI i narzędziach obowiązkowych   | Prywatnych preferencjach co do agenta               |
+
+Praktyczna zasada: jeśli bez danego narzędzia projekt nie ruszy, wpisz je jako
+feature. Jeśli to kwestia gustu, zostaw kreatorowi.
+
+## Lista feature'ów
+
+Wszystkie publikowane są pod `ghcr.io/zanreal-labs/devcontainer/<id>`.
+
+| Feature      | Wersja  | Identyfikator                                      |
+| ------------ | ------- | -------------------------------------------------- |
+| Claude Code  | `1.0.0` | `ghcr.io/zanreal-labs/devcontainer/claude-code:1`  |
+| Gemini CLI   | `1.0.0` | `ghcr.io/zanreal-labs/devcontainer/gemini-cli:1`   |
+| OpenAI Codex | `1.0.0` | `ghcr.io/zanreal-labs/devcontainer/openai-codex:1` |
+| OpenCode     | `1.0.0` | `ghcr.io/zanreal-labs/devcontainer/opencode:1`     |
+| Bun          | `1.0.0` | `ghcr.io/zanreal-labs/devcontainer/bun:1`          |
+| uv           | `1.0.1` | `ghcr.io/zanreal-labs/devcontainer/uv:1`           |
+| Supabase CLI | `1.0.0` | `ghcr.io/zanreal-labs/devcontainer/supabase-cli:1` |
+| Tinybird CLI | `1.0.0` | `ghcr.io/zanreal-labs/devcontainer/tinybird-cli:1` |
+| Stripe CLI   | `1.0.0` | `ghcr.io/zanreal-labs/devcontainer/stripe-cli:1`   |
+| Traefik      | `1.3.2` | `ghcr.io/zanreal-labs/devcontainer/traefik:1`      |
+
+Końcówka `:1` przypina wersję główną i sama podciąga wydania minor oraz patch.
+Jeśli zależy Ci na buildach powtarzalnych co do bajta, wpisz pełny numer
+wersji.
+
+ForgeCode i GitHub CLI mają tylko wpis w kreatorze - osobnych feature'ów dla
+nich nie ma.
+
+## Opcje
+
+Większość feature'ów nie przyjmuje żadnych parametrów. Wyjątki są dwa: Bun
+przyjmuje `version` (domyślnie `latest`), a Traefik trzy opcje routingu,
+opisane niżej.
+
+```jsonc
+"features": {
+  "ghcr.io/zanreal-labs/devcontainer/bun:1": { "version": "1.3.3" },
+  "ghcr.io/zanreal-labs/devcontainer/claude-code:1": {}
+}
+```
+
+### Kolejność instalacji
+
+Gemini CLI i OpenAI Codex instalują się przez npm i wskazują w `installsAfter`
+oficjalny feature `node`, więc musisz go dorzucić do konfiguracji:
+
+```jsonc
+"features": {
+  "ghcr.io/devcontainers/features/node:1": { "version": "22" },
+  "ghcr.io/zanreal-labs/devcontainer/gemini-cli:1": {}
+}
+```
+
+Tinybird CLI to narzędzie pythonowe. Ustawia się w kolejce za feature'em `uv` i
+instaluje poleceniem `uv tool install --python 3.13 tinybird-cli`. Gdyby `uv`
+zabrakło, dociągnie go sobie sam zamiast przerwać budowanie.
+
+## Traefik
+
+Traefik jest feature'em, a nie pozycją w kreatorze, bo swoją konfigurację
+generuje na podstawie opcji już na etapie budowania obrazu.
+
+```jsonc
+"features": {
+  "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": false },
+  "ghcr.io/zanreal-labs/devcontainer/traefik:1": {
+    "domain": "mojprojekt.localhost",
+    "routes": "web:3000,api:4000",
+    "defaultApp": "web"
+  }
+}
+```
+
+Taka konfiguracja daje dwa adresy:
+
+| Adres                              | Trafia na                                                        |
+| ---------------------------------- | ---------------------------------------------------------------- |
+| `https://mojprojekt.localhost`     | port `3000`, czyli aplikacja `web` wystawiona na domenie głównej |
+| `https://api.mojprojekt.localhost` | port `4000`                                                      |
+
+Każda aplikacja wymieniona w `routes` dostaje subdomenę `<nazwa>.<domena>`. Ta
+wskazana w `defaultApp` odpowiada dodatkowo na samej domenie.
+
+| Opcja        | Domyślnie       | Opis                                      |
+| ------------ | --------------- | ----------------------------------------- |
+| `domain`     | `app.localhost` | Domena bazowa dla całego routingu         |
+| `routes`     | `""`            | Pary `nazwa:port` rozdzielone przecinkami |
+| `defaultApp` | `""`            | Aplikacja obsługiwana na domenie głównej  |
+
+### Uruchamianie
+
+Proxy podnosi się samo: `setup.sh` sprawdza, czy istnieje wygenerowany plik
+`/usr/local/share/traefik/docker-compose.yml` i czy jest dostępny Docker.
+Ręcznie sterujesz nim dwoma poleceniami:
+
+```bash
+traefik-start   # przegeneruj konfigurację i podnieś proxy
+traefik-stop    # docker compose down
+```
+
+`traefik-start` za każdym razem tworzy konfigurację od nowa, a potem startuje
+kontener `traefik:v3.7` o nazwie `devcontainer-traefik` na portach 80 i 443.
+Ruch z portu 80 jest przekierowywany na 443. Backendy adresowane są przez
+`http://host.docker.internal:<port>` - tak proxy dosięga serwera
+deweloperskiego działającego wewnątrz dev containera, niezależnie od tego, czy
+to Next.js, Vite czy cokolwiek innego.
+
+> [!NOTE]
+> TLS włączany jest pustym blokiem `tls: {}`, bez żadnego mechanizmu wydawania
+> certyfikatów. Traefik podstawia wtedy swój wbudowany, samopodpisany
+> certyfikat, więc przy pierwszym wejściu przeglądarka pokaże ostrzeżenie o
+> niezaufanym połączeniu.
+
+Domenę da się zmienić bez przebudowywania kontenera - wystarczy zmienna
+`TRAEFIK_DOMAIN`:
+
+```bash
+TRAEFIK_DOMAIN=mojprojekt.test traefik-start
+```
+
+Feature `docker-in-docker` jest tu wymagany, bo Traefik działa obok, jako
+osobny kontener.
