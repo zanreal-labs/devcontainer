@@ -1,0 +1,136 @@
+---
+title: Features
+description: The devcontainer features published alongside the image - AI agents, package managers, service CLIs, and the Traefik reverse proxy.
+---
+
+The repository publishes ten devcontainer features to
+`ghcr.io/zanreal-labs/devcontainer/<id>`. They are an alternative to the wizard:
+a feature is baked in when the container is built, so the tool is present before
+anyone opens a terminal. That makes them the right choice for CI, for prebuilt
+images, and for anything a teammate should not have to opt into.
+
+## Available features
+
+| Feature      | Version | Reference                                          |
+| ------------ | ------- | -------------------------------------------------- |
+| Claude Code  | `1.0.0` | `ghcr.io/zanreal-labs/devcontainer/claude-code:1`  |
+| Gemini CLI   | `1.0.0` | `ghcr.io/zanreal-labs/devcontainer/gemini-cli:1`   |
+| OpenAI Codex | `1.0.0` | `ghcr.io/zanreal-labs/devcontainer/openai-codex:1` |
+| OpenCode     | `1.0.0` | `ghcr.io/zanreal-labs/devcontainer/opencode:1`     |
+| Bun          | `1.0.0` | `ghcr.io/zanreal-labs/devcontainer/bun:1`          |
+| uv           | `1.0.1` | `ghcr.io/zanreal-labs/devcontainer/uv:1`           |
+| Supabase CLI | `1.0.0` | `ghcr.io/zanreal-labs/devcontainer/supabase-cli:1` |
+| Tinybird CLI | `1.0.0` | `ghcr.io/zanreal-labs/devcontainer/tinybird-cli:1` |
+| Stripe CLI   | `1.0.0` | `ghcr.io/zanreal-labs/devcontainer/stripe-cli:1`   |
+| Traefik      | `1.3.2` | `ghcr.io/zanreal-labs/devcontainer/traefik:1`      |
+
+The `:1` suffix pins the major version and picks up minor and patch releases
+automatically. Pin the exact version instead if you need byte-identical builds.
+
+Most features take no options. Two exceptions are worth knowing:
+
+- **Bun** accepts a `version` string, defaulting to `latest`.
+- **Traefik** takes `domain`, `routes` and `defaultApp` - see below.
+
+```jsonc
+"features": {
+  "ghcr.io/zanreal-labs/devcontainer/bun:1": { "version": "1.3.3" },
+  "ghcr.io/zanreal-labs/devcontainer/claude-code:1": {}
+}
+```
+
+### Ordering and dependencies
+
+The Gemini CLI and OpenAI Codex features install through npm and declare
+`installsAfter` on the official `node` feature, so add it to your configuration:
+
+```jsonc
+"features": {
+  "ghcr.io/devcontainers/features/node:1": { "version": "22" },
+  "ghcr.io/zanreal-labs/devcontainer/gemini-cli:1": {}
+}
+```
+
+The Tinybird CLI is a Python tool. It declares `installsAfter` on the `uv`
+feature and installs itself with `uv tool install --python 3.13 tinybird-cli`;
+if `uv` is missing it bootstraps its own copy rather than failing.
+
+### Wizard or feature?
+
+Both install the same binaries. The difference is when and for whom.
+
+|              | Feature                   | Wizard                                      |
+| ------------ | ------------------------- | ------------------------------------------- |
+| Runs at      | Container build           | First container start                       |
+| Applies to   | Everyone on the project   | The individual developer                    |
+| Rebuild cost | Cached in the image layer | Reinstalled unless the marker file survives |
+| Good for     | CI, mandatory tooling     | Personal agent preferences                  |
+
+ForgeCode and GitHub CLI exist only in the wizard - there is no feature for
+either.
+
+## Traefik reverse proxy
+
+Traefik is a feature rather than a wizard entry because it generates its
+configuration at build time from the options you pass.
+
+```jsonc
+"features": {
+  "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": false },
+  "ghcr.io/zanreal-labs/devcontainer/traefik:1": {
+    "domain": "myapp.localhost",
+    "routes": "web:3000,api:4000",
+    "defaultApp": "web"
+  }
+}
+```
+
+That configuration produces two routes:
+
+| URL                           | Forwards to                                              |
+| ----------------------------- | -------------------------------------------------------- |
+| `https://myapp.localhost`     | port `3000` - the `web` app, promoted to the root domain |
+| `https://api.myapp.localhost` | port `4000`                                              |
+
+Every app named in `routes` gets a `<name>.<domain>` subdomain. The one named in
+`defaultApp` additionally answers on the bare domain.
+
+### Options
+
+| Option       | Default         | Description                       |
+| ------------ | --------------- | --------------------------------- |
+| `domain`     | `app.localhost` | Base domain for all routing       |
+| `routes`     | `""`            | Comma-separated `name:port` pairs |
+| `defaultApp` | `""`            | App served on the root domain     |
+
+### How it runs
+
+`setup.sh` starts Traefik automatically when it finds the generated Compose file
+at `/usr/local/share/traefik/docker-compose.yml` and Docker is available. You can
+also drive it by hand:
+
+```bash
+traefik-start   # regenerate config and bring the proxy up
+traefik-stop    # docker compose down
+```
+
+`traefik-start` regenerates both the static and dynamic configuration on every
+run, then starts a `traefik:v3.7` container named `devcontainer-traefik` bound to
+ports 80 and 443. Port 80 redirects to 443. Backends are addressed as
+`http://host.docker.internal:<port>`, which is how the proxy container reaches a
+dev server running in the devcontainer itself - Next.js, Vite, anything.
+
+> [!NOTE]
+> TLS is enabled per router with an empty `tls: {}` block and no certificate
+> resolver, so Traefik serves its built-in self-signed certificate. Expect a
+> browser trust warning the first time you open one of these domains.
+
+To change the domain without rebuilding the container, set `TRAEFIK_DOMAIN`
+before starting:
+
+```bash
+TRAEFIK_DOMAIN=myapp.test traefik-start
+```
+
+The Docker-in-Docker feature is a hard requirement - Traefik runs as a sibling
+container.

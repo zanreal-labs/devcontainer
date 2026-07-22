@@ -1,0 +1,181 @@
+---
+title: Configuration
+description: What setup.sh does on every container start - credential forwarding, dependency install, service startup - plus cache isolation and project-specific hooks.
+---
+
+Everything the image does after the container exists happens in
+`/usr/local/share/devcontainer/setup.sh`, wired up through `postCreateCommand`.
+This page walks through what it touches, in the order it touches it.
+
+## The setup sequence
+
+### 1. Detect the user
+
+The script resolves the current user with `id -un` rather than assuming
+`vscode`. Some editors - Zed in particular - run the lifecycle command as root
+regardless of `remoteUser`, and every `chown` afterwards depends on getting this
+right.
+
+### 2. Forward Git, SSH and GPG from the host
+
+Credentials are staged as bind mounts under `/tmp` and then _copied_ into
+`$HOME`. The copy is the point: mounting `~/.ssh` or `~/.gnupg` directly leads to
+"Device busy" errors and permissions the tools refuse to accept.
+
+```jsonc
+"mounts": [
+  "source=${localEnv:HOME}/.gitconfig,target=/tmp/.host-gitconfig,type=bind,consistency=cached",
+  "source=${localEnv:HOME}/.gnupg,target=/tmp/.host-gnupg,type=bind,consistency=cached",
+  "source=${localEnv:HOME}/.ssh,target=/tmp/.host-ssh,type=bind,consistency=cached"
+]
+```
+
+SSH keys land at `0600`, public keys and `known_hosts` at `0644`, the directory
+itself at `0700`. For GPG the script also restarts `gpg-agent`, appends
+`allow-loopback-pinentry` and `pinentry-mode loopback` to the agent config, and
+exports `GPG_TTY` in both shell rc files - the combination that makes signed
+commits work from a terminal with no graphical pinentry.
+
+> [!NOTE]
+> Docker-in-Docker mounts a tmpfs over `/tmp`, which hides bind mounts placed
+> there. That is why the script checks `$HOME/.host-gitconfig` before falling
+> back to `/tmp/.host-gitconfig`.
+
+VS Code forwards the SSH agent on its own. Other editors need it spelled out:
+
+```jsonc
+"containerEnv": { "SSH_AUTH_SOCK": "/tmp/ssh-agent.sock" },
+"mounts": [
+  "source=${localEnv:SSH_AUTH_SOCK},target=/tmp/ssh-agent.sock,type=bind"
+]
+```
+
+### 3. Fix volume ownership
+
+Docker creates named and anonymous volumes owned by root. The script chowns
+`node_modules` and any `.next` directory within three levels of the workspace
+root back to the container user, otherwise the first install fails on
+permissions.
+
+### 4. Install dependencies
+
+The lockfile decides the package manager. The first match wins:
+
+| Lockfile                  | Behaviour                                                        |
+| ------------------------- | ---------------------------------------------------------------- |
+| `pnpm-lock.yaml`          | Enables corepack, activates pnpm, runs `pnpm install`            |
+| `bun.lock` or `bun.lockb` | Removes stale nested `node_modules` symlinks, runs `bun install` |
+| `package-lock.json`       | Runs `npm install`                                               |
+| `yarn.lock`               | Runs `yarn install`                                              |
+
+If the matching tool is not installed, the script says so and moves on instead
+of failing the container. For pnpm and bun the message points at
+`devcontainer-wizard`.
+
+### 5. Start services
+
+| Trigger                                             | Action                                             |
+| --------------------------------------------------- | -------------------------------------------------- |
+| `supabase/config.toml` and the Supabase CLI present | `supabase stop --no-backup`, then `supabase start` |
+| `TINYBIRD=1` and Docker present                     | Starts a `tinybird-local` container on port `7181` |
+| Traefik feature installed and Docker present        | Runs `traefik-start`                               |
+
+Each check requires both the project signal and the tool, so a project with a
+Supabase config opened in a container without the CLI simply skips the step.
+
+### 6. Run the wizard
+
+Only when `~/.devcontainer-wizard-done` is absent. With `DEVCONTAINER_TOOLS` set
+it runs headless; with a TTY it prompts; with neither it prints a hint and
+exits.
+
+### 7. Smooth over Claude Code onboarding
+
+If Claude Code is installed, the script seeds `~/.claude.json` with
+`hasCompletedOnboarding`, a theme, and a trust entry for the current workspace.
+Without this, Claude Code opens its first-run wizard and its per-workspace trust
+dialog even when `ANTHROPIC_API_KEY` is set - which blocks any non-interactive
+use.
+
+When the file already exists (for instance bind-mounted from the host) the
+script patches it with `jq` instead of overwriting, adding only the trust entry
+for the current directory.
+
+### 8. Run your project hook
+
+Create `.devcontainer/post-setup.sh` and it runs last, after everything above:
+
+```bash title=".devcontainer/post-setup.sh"
+#!/bin/bash
+docker compose up -d redis
+pnpm db:migrate
+```
+
+### 9. Print a health check
+
+Setup ends with a summary of what is actually on `PATH` - runtimes, AI agents,
+infrastructure CLIs - with versions. `node MISSING` here means you forgot the
+`node` feature.
+
+## Cache isolation
+
+Build artifacts belong in the container, not scattered across your host drive
+through a bind mount. This is a convention you set up in `devcontainer.json`;
+the image does not impose it. The example configuration wires it as follows:
+
+| Cache          | Strategy                                | Lifetime          |
+| -------------- | --------------------------------------- | ----------------- |
+| `node_modules` | Named Docker volume                     | Survives rebuilds |
+| `.next`        | Anonymous Docker volume                 | Wiped on rebuild  |
+| Turborepo      | `TURBO_CACHE_DIR=/tmp/.turbo`           | Wiped on rebuild  |
+| Bun            | `BUN_INSTALL_CACHE_DIR=/tmp/.bun-cache` | Wiped on rebuild  |
+
+```jsonc
+"containerEnv": {
+  "TURBO_CACHE_DIR": "/tmp/.turbo",
+  "BUN_INSTALL_CACHE_DIR": "/tmp/.bun-cache"
+},
+"mounts": [
+  "source=my-project-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
+  "target=${containerWorkspaceFolder}/apps/web/.next,type=volume"
+]
+```
+
+A named volume for `node_modules` is the one worth keeping - reinstalling a
+large monorepo on every rebuild is the slowest part of the loop. Anonymous
+volumes, written without a `source`, are discarded when the container is
+recreated.
+
+## Extending the image
+
+### Corporate proxy certificates
+
+The base image creates `/usr/local/share/ca-certificates/extra` for exactly this
+purpose:
+
+```dockerfile
+FROM ghcr.io/zanreal-labs/devcontainer:latest
+COPY my-corporate-ca.crt /usr/local/share/ca-certificates/extra/
+RUN update-ca-certificates
+```
+
+### Custom DNS
+
+```jsonc
+"runArgs": ["--dns", "10.0.0.1", "--dns", "1.1.1.1"]
+```
+
+## Image tags
+
+Releases are cut by pushing a `v*` tag, which builds the multi-architecture
+image and publishes the features in the same run.
+
+| Tag      | Tracks                              |
+| -------- | ----------------------------------- |
+| `latest` | The newest release                  |
+| `1.2.0`  | That exact version                  |
+| `1.2`    | Patch releases within `1.2`         |
+| `1`      | Minor and patch releases within `1` |
+
+Versioning is semantic: patch for tool bumps and fixes, minor for new tools,
+major for breaking changes to the base image or the `setup.sh` interface.
