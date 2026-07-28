@@ -5,10 +5,10 @@ echo "Installing Bun..."
 
 VERSION="${VERSION:-latest}"
 
-if [ "$VERSION" = "latest" ]; then
-  curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash
+if [[ "$VERSION" = "latest" ]]; then
+  curl -fsSL --proto-redir '=https' https://bun.sh/install | BUN_INSTALL=/usr/local bash
 else
-  curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash -s "bun-v${VERSION}"
+  curl -fsSL --proto-redir '=https' https://bun.sh/install | BUN_INSTALL=/usr/local bash -s "bun-v${VERSION}"
 fi
 
 echo "Bun installed: $(bun --version)"

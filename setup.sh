@@ -10,16 +10,16 @@ CURRENT_GROUP="$(id -gn)"
 # Check multiple paths: DinD mounts tmpfs over /tmp, hiding bind mounts there
 HOST_GITCONFIG=""
 for p in "$HOME/.host-gitconfig" /tmp/.host-gitconfig; do
-  [ -f "$p" ] && HOST_GITCONFIG="$p" && break
+  [[ -f "$p" ]] && HOST_GITCONFIG="$p" && break
 done
-if [ -n "$HOST_GITCONFIG" ]; then
+if [[ -n "$HOST_GITCONFIG" ]]; then
   echo "==> Copying host .gitconfig..."
   cp "$HOST_GITCONFIG" "$HOME/.gitconfig"
   chown "$CURRENT_USER:$CURRENT_GROUP" "$HOME/.gitconfig" 2>/dev/null || true
 fi
 
 # ── SSH ──────────────────────────────────────────────────────────────────────
-if [ -d /tmp/.host-ssh ]; then
+if [[ -d /tmp/.host-ssh ]]; then
   echo "==> Copying host SSH keys..."
   mkdir -p "$HOME/.ssh"
   cp -a /tmp/.host-ssh/. "$HOME/.ssh/"
@@ -32,7 +32,7 @@ if [ -d /tmp/.host-ssh ]; then
 fi
 
 # ── GPG ──────────────────────────────────────────────────────────────────────
-if [ -d /tmp/.host-gnupg ]; then
+if [[ -d /tmp/.host-gnupg ]]; then
   echo "==> Setting up GPG..."
   mkdir -p "$HOME/.gnupg"
   cp -a /tmp/.host-gnupg/. "$HOME/.gnupg/"
@@ -41,7 +41,7 @@ if [ -d /tmp/.host-gnupg ]; then
   chmod 600 "$HOME/.gnupg/"*.conf 2>/dev/null || true
   chmod 600 "$HOME/.gnupg/private-keys-v1.d"/* 2>/dev/null || true
   gpgconf --kill gpg-agent 2>/dev/null || true
-  if [ ! -S "$HOME/.gnupg/S.gpg-agent" ]; then
+  if [[ ! -S "$HOME/.gnupg/S.gpg-agent" ]]; then
     AGENT_CONF="$HOME/.gnupg/gpg-agent.conf"
     grep -q 'allow-loopback-pinentry' "$AGENT_CONF" 2>/dev/null || echo "allow-loopback-pinentry" >> "$AGENT_CONF"
     GPG_CONF="$HOME/.gnupg/gpg.conf"
@@ -50,21 +50,21 @@ if [ -d /tmp/.host-gnupg ]; then
   fi
 fi
 for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
-  [ -f "$rc" ] && ! grep -q 'GPG_TTY' "$rc" 2>/dev/null && echo 'export GPG_TTY=$(tty)' >> "$rc"
+  [[ -f "$rc" ]] && ! grep -q 'GPG_TTY' "$rc" 2>/dev/null && echo 'export GPG_TTY=$(tty)' >> "$rc"
 done
 export GPG_TTY=$(tty) 2>/dev/null || true
 
 # ── Volume ownership ────────────────────────────────────────────────────────
 # Docker volumes are created as root — fix ownership for all mounted volumes
 echo "==> Fixing volume ownership..."
-if [ -d "node_modules" ]; then
+if [[ -d "node_modules" ]]; then
   sudo chown "$CURRENT_USER:$CURRENT_GROUP" node_modules 2>/dev/null || true
 fi
 # Fix .next directories (anonymous volume mounts)
 find . -maxdepth 3 -name ".next" -type d -exec sudo chown -R "$CURRENT_USER:$CURRENT_GROUP" {} \; 2>/dev/null || true
 
 # ── Package manager setup & install ─────────────────────────────────────────
-if [ -f "pnpm-lock.yaml" ]; then
+if [[ -f "pnpm-lock.yaml" ]]; then
   if command -v pnpm &>/dev/null || command -v corepack &>/dev/null; then
     echo "==> Setting up pnpm via corepack..."
     if command -v corepack &>/dev/null; then
@@ -77,7 +77,7 @@ if [ -f "pnpm-lock.yaml" ]; then
     echo "==> Skipping dependency install — pnpm not found."
     echo "    Run 'devcontainer-wizard' to install it."
   fi
-elif [ -f "bun.lock" ] || [ -f "bun.lockb" ]; then
+elif [[ -f "bun.lock" ]] || [[ -f "bun.lockb" ]]; then
   if command -v bun &>/dev/null; then
     echo "==> Cleaning stale node_modules symlinks..."
     find . -path ./node_modules -prune -o -name node_modules -type d -print -exec rm -rf {} + 2>/dev/null || true
@@ -87,14 +87,14 @@ elif [ -f "bun.lock" ] || [ -f "bun.lockb" ]; then
     echo "==> Skipping dependency install — bun not found."
     echo "    Run 'devcontainer-wizard' to install it."
   fi
-elif [ -f "package-lock.json" ]; then
+elif [[ -f "package-lock.json" ]]; then
   if command -v npm &>/dev/null; then
     echo "==> Installing dependencies with npm..."
     npm install
   else
     echo "==> Skipping dependency install — npm not found."
   fi
-elif [ -f "yarn.lock" ]; then
+elif [[ -f "yarn.lock" ]]; then
   if command -v yarn &>/dev/null; then
     echo "==> Installing dependencies with yarn..."
     yarn install
@@ -104,13 +104,13 @@ elif [ -f "yarn.lock" ]; then
 fi
 
 # ── Services ─────────────────────────────────────────────────────────────────
-if [ -f "supabase/config.toml" ] && command -v supabase &>/dev/null; then
+if [[ -f "supabase/config.toml" ]] && command -v supabase &>/dev/null; then
   echo "==> Starting Supabase..."
   supabase stop --no-backup 2>/dev/null || true
   supabase start
 fi
 
-if [ "${TINYBIRD:-}" = "1" ] && command -v docker &>/dev/null; then
+if [[ "${TINYBIRD:-}" = "1" ]] && command -v docker &>/dev/null; then
   echo "==> Starting Tinybird Local..."
   docker start tinybird-local 2>/dev/null || \
     docker run -d -p 7181:7181 --name tinybird-local tinybirdco/tinybird-local:latest || \
@@ -118,18 +118,18 @@ if [ "${TINYBIRD:-}" = "1" ] && command -v docker &>/dev/null; then
   sleep 3
 fi
 
-if [ -f "/usr/local/share/traefik/docker-compose.yml" ] && command -v docker &>/dev/null; then
+if [[ -f "/usr/local/share/traefik/docker-compose.yml" ]] && command -v docker &>/dev/null; then
   traefik-start
 fi
 
 # ── Setup wizard ─────────────────────────────────────────────────────────────
 # Interactive TUI for selecting optional tools (AI agents, CLIs, etc.)
 # Runs on first container start; re-run with: devcontainer-wizard --force
-if [ ! -f "$HOME/.devcontainer-wizard-done" ]; then
-  if [ -n "${DEVCONTAINER_TOOLS:-}" ]; then
+if [[ ! -f "$HOME/.devcontainer-wizard-done" ]]; then
+  if [[ -n "${DEVCONTAINER_TOOLS:-}" ]]; then
     echo "==> Running wizard in headless mode (DEVCONTAINER_TOOLS set)..."
     bash /usr/local/share/devcontainer/wizard.sh
-  elif [ -t 0 ]; then
+  elif [[ -t 0 ]]; then
     echo "==> Running setup wizard..."
     bash /usr/local/share/devcontainer/wizard.sh
   else
@@ -148,13 +148,13 @@ fi
 # locations instead of relying on `command -v claude`.
 CLAUDE_BIN=""
 for p in "$HOME/.local/bin/claude" "$HOME/.claude/local/claude" "$(command -v claude 2>/dev/null)"; do
-  [ -n "$p" ] && [ -x "$p" ] && CLAUDE_BIN="$p" && break
+  [[ -n "$p" ]] && [[ -x "$p" ]] && CLAUDE_BIN="$p" && break
 done
 
-if [ -n "$CLAUDE_BIN" ] || [ -d "$HOME/.claude" ]; then
+if [[ -n "$CLAUDE_BIN" ]] || [[ -d "$HOME/.claude" ]]; then
   CLAUDE_JSON="$HOME/.claude.json"
   WORKDIR_ABS="$(pwd)"
-  if [ ! -f "$CLAUDE_JSON" ]; then
+  if [[ ! -f "$CLAUDE_JSON" ]]; then
     echo "==> Seeding ~/.claude.json to skip Claude Code onboarding..."
     cat > "$CLAUDE_JSON" <<EOF
 {
@@ -192,7 +192,7 @@ EOF
 fi
 
 # ── Project-specific hook ────────────────────────────────────────────────────
-if [ -f ".devcontainer/post-setup.sh" ]; then
+if [[ -f ".devcontainer/post-setup.sh" ]]; then
   echo "==> Running project-specific post-setup..."
   bash .devcontainer/post-setup.sh
 fi
@@ -202,25 +202,32 @@ echo ""
 echo "==> Environment ready"
 echo ""
 
+# Single place that owns the "name  version" row format used below.
+report_row() {
+  local tool_name="$1"
+  local tool_version="$2"
+  printf '    %-12s %s\n' "$tool_name" "$tool_version"
+}
+
 echo "  Runtimes"
-printf "    %-12s %s\n" "node" "$(node --version 2>/dev/null || echo 'MISSING')"
-command -v bun &>/dev/null && printf "    %-12s %s\n" "bun" "$(bun --version 2>/dev/null)"
-command -v python3 &>/dev/null && printf "    %-12s %s\n" "python" "$(python3 --version 2>/dev/null | awk '{print $2}')"
-command -v uv &>/dev/null && printf "    %-12s %s\n" "uv" "$(uv --version 2>/dev/null | awk '{print $2}')"
+report_row "node" "$(node --version 2>/dev/null || echo 'MISSING')"
+command -v bun &>/dev/null && report_row "bun" "$(bun --version 2>/dev/null)"
+command -v python3 &>/dev/null && report_row "python" "$(python3 --version 2>/dev/null | awk '{print $2}')"
+command -v uv &>/dev/null && report_row "uv" "$(uv --version 2>/dev/null | awk '{print $2}')"
 echo ""
 
 echo "  AI Agents"
-command -v claude &>/dev/null && printf "    %-12s %s\n" "claude" "$(claude --version 2>/dev/null)"
-command -v forge &>/dev/null && printf "    %-12s %s\n" "forge" "$(forge --version 2>/dev/null)"
-command -v gemini &>/dev/null && printf "    %-12s %s\n" "gemini" "$(gemini --version 2>/dev/null | head -1)"
-command -v codex &>/dev/null && printf "    %-12s %s\n" "codex" "$(codex --version 2>/dev/null)"
-command -v opencode &>/dev/null && printf "    %-12s %s\n" "opencode" "$(opencode version 2>/dev/null)"
+command -v claude &>/dev/null && report_row "claude" "$(claude --version 2>/dev/null)"
+command -v forge &>/dev/null && report_row "forge" "$(forge --version 2>/dev/null)"
+command -v gemini &>/dev/null && report_row "gemini" "$(gemini --version 2>/dev/null | head -1)"
+command -v codex &>/dev/null && report_row "codex" "$(codex --version 2>/dev/null)"
+command -v opencode &>/dev/null && report_row "opencode" "$(opencode version 2>/dev/null)"
 echo ""
 
 echo "  Infrastructure"
-command -v docker &>/dev/null && printf "    %-12s %s\n" "docker" "$(docker --version 2>/dev/null | awk '{print $3}' | tr -d ',')"
-command -v gh &>/dev/null && printf "    %-12s %s\n" "gh" "$(gh --version 2>/dev/null | head -1 | awk '{print $3}')"
-command -v supabase &>/dev/null && printf "    %-12s %s\n" "supabase" "$(supabase --version 2>/dev/null)"
-command -v stripe &>/dev/null && printf "    %-12s %s\n" "stripe" "$(stripe version 2>/dev/null)"
-command -v tb &>/dev/null && printf "    %-12s %s\n" "tinybird" "$(tb --version 2>/dev/null | awk '{print $NF}')"
+command -v docker &>/dev/null && report_row "docker" "$(docker --version 2>/dev/null | awk '{print $3}' | tr -d ',')"
+command -v gh &>/dev/null && report_row "gh" "$(gh --version 2>/dev/null | head -1 | awk '{print $3}')"
+command -v supabase &>/dev/null && report_row "supabase" "$(supabase --version 2>/dev/null)"
+command -v stripe &>/dev/null && report_row "stripe" "$(stripe version 2>/dev/null)"
+command -v tb &>/dev/null && report_row "tinybird" "$(tb --version 2>/dev/null | awk '{print $NF}')"
 echo ""

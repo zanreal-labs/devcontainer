@@ -5,8 +5,8 @@ echo "Installing Gemini CLI..."
 
 # Gemini CLI requires Node.js — check availability
 if ! command -v npm &>/dev/null; then
-  echo "ERROR: npm not found. Add the Node.js feature before gemini-cli:"
-  echo '  "ghcr.io/devcontainers/features/node:1": { "version": "22" }'
+  echo "ERROR: npm not found. Add the Node.js feature before gemini-cli:" >&2
+  echo '  "ghcr.io/devcontainers/features/node:1": { "version": "22" }' >&2
   exit 1
 fi
 

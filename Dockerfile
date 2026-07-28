@@ -7,10 +7,10 @@ LABEL org.opencontainers.image.licenses="MIT"
 # ── System setup ─────────────────────────────────────────────────────────────
 
 # GPG symlink (macOS .gitconfig references /usr/local/bin/gpg, Debian has /usr/bin/gpg)
-RUN ln -sf /usr/bin/gpg /usr/local/bin/gpg 2>/dev/null || true
-
-# Custom CA certificates (for corporate proxies — mount or COPY certs here)
-RUN mkdir -p /usr/local/share/ca-certificates/extra
+# plus a drop-in dir for custom CA certificates (corporate proxies - mount or
+# COPY certs here). The symlink is best-effort, so its status is discarded.
+RUN ln -sf /usr/bin/gpg /usr/local/bin/gpg 2>/dev/null; \
+    mkdir -p /usr/local/share/ca-certificates/extra
 
 # Default non-root user — Microsoft base uses "vscode", override with build arg
 ARG USERNAME=vscode
@@ -26,7 +26,7 @@ RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/${USERNAME}/.bashrc && 
 
 # ── TUI toolkit (Charmbracelet gum) ─────────────────────────────────────────
 RUN mkdir -p /etc/apt/keyrings && \
-    curl -fsSL https://repo.charm.sh/apt/gpg.key | gpg --dearmor -o /etc/apt/keyrings/charm.gpg && \
+    curl -fsSL --proto-redir '=https' https://repo.charm.sh/apt/gpg.key | gpg --dearmor -o /etc/apt/keyrings/charm.gpg && \
     echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" > /etc/apt/sources.list.d/charm.list && \
     apt-get update && \
     apt-get install -y gum tmux && \
