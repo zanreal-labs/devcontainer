@@ -204,7 +204,9 @@ echo ""
 
 # Single place that owns the "name  version" row format used below.
 report_row() {
-  printf '    %-12s %s\n' "$1" "$2"
+  local tool_name="$1"
+  local tool_version="$2"
+  printf '    %-12s %s\n' "$tool_name" "$tool_version"
 }
 
 echo "  Runtimes"
