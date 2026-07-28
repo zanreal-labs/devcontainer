@@ -24,42 +24,42 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ── Guard: skip if already done (unless --force) ────────────────────────────
-if [ -f "$MARKER_FILE" ] && [ "$FORCE" != "true" ]; then
+if [[ -f "$MARKER_FILE" ]] && [[ "$FORCE" != "true" ]]; then
   exit 0
 fi
 
 # ── Headless mode via DEVCONTAINER_TOOLS env var ─────────────────────────────
-if [ -n "${DEVCONTAINER_TOOLS:-}" ]; then
+if [[ -n "${DEVCONTAINER_TOOLS:-}" ]]; then
   echo "==> Installing tools from DEVCONTAINER_TOOLS: $DEVCONTAINER_TOOLS"
   IFS=',' read -ra TOOLS <<< "$DEVCONTAINER_TOOLS"
   for tool in "${TOOLS[@]}"; do
     tool="$(echo "$tool" | xargs)" # trim whitespace
     case "$tool" in
       claude-code)
-        command -v claude &>/dev/null || { echo "  Installing Claude Code..."; curl -fsSL https://claude.ai/install.sh | bash 2>/dev/null; } ;;
+        command -v claude &>/dev/null || { echo "  Installing Claude Code..."; curl -fsSL --proto-redir '=https' https://claude.ai/install.sh | bash 2>/dev/null; } ;;
       gemini-cli)
         command -v gemini &>/dev/null || { echo "  Installing Gemini CLI..."; npm install -g @google/gemini-cli 2>/dev/null; } ;;
       openai-codex)
         command -v codex &>/dev/null || { echo "  Installing OpenAI Codex..."; npm install -g @openai/codex 2>/dev/null; } ;;
       forgecode)
-        command -v forge &>/dev/null || { echo "  Installing ForgeCode..."; curl -fsSL https://forgecode.dev/cli | sh 2>/dev/null; } ;;
+        command -v forge &>/dev/null || { echo "  Installing ForgeCode..."; curl -fsSL --proto-redir '=https' https://forgecode.dev/cli | sh 2>/dev/null; } ;;
       opencode)
-        command -v opencode &>/dev/null || { echo "  Installing OpenCode..."; curl -fsSL https://opencode.ai/install | bash 2>/dev/null; } ;;
+        command -v opencode &>/dev/null || { echo "  Installing OpenCode..."; curl -fsSL --proto-redir '=https' https://opencode.ai/install | bash 2>/dev/null; } ;;
       bun)
-        command -v bun &>/dev/null || { echo "  Installing bun..."; curl -fsSL https://bun.sh/install | BUN_INSTALL="$HOME/.bun" bash 2>/dev/null; } ;;
+        command -v bun &>/dev/null || { echo "  Installing bun..."; curl -fsSL --proto-redir '=https' https://bun.sh/install | BUN_INSTALL="$HOME/.bun" bash 2>/dev/null; } ;;
       uv)
-        command -v uv &>/dev/null || { echo "  Installing uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh 2>/dev/null; } ;;
+        command -v uv &>/dev/null || { echo "  Installing uv..."; curl -LsSf --proto-redir '=https' https://astral.sh/uv/install.sh | sh 2>/dev/null; } ;;
       supabase-cli)
         command -v supabase &>/dev/null || {
           echo "  Installing Supabase CLI..."
-          ARCH=$(uname -m); [ "$ARCH" = "aarch64" ] && ARCH="arm64"; [ "$ARCH" = "x86_64" ] && ARCH="amd64"
-          curl -fsSL "https://github.com/supabase/cli/releases/latest/download/supabase_linux_${ARCH}.tar.gz" -o /tmp/supabase.tar.gz
+          ARCH=$(uname -m); [[ "$ARCH" = "aarch64" ]] && ARCH="arm64"; [[ "$ARCH" = "x86_64" ]] && ARCH="amd64"
+          curl -fsSL --proto-redir '=https' "https://github.com/supabase/cli/releases/latest/download/supabase_linux_${ARCH}.tar.gz" -o /tmp/supabase.tar.gz
           sudo tar -xzf /tmp/supabase.tar.gz -C /usr/local/bin supabase && rm /tmp/supabase.tar.gz
         } ;;
       tinybird-cli)
         command -v tb &>/dev/null || {
           echo "  Installing Tinybird CLI..."
-          command -v uv &>/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh 2>/dev/null
+          command -v uv &>/dev/null || curl -LsSf --proto-redir '=https' https://astral.sh/uv/install.sh | sh 2>/dev/null
           uv tool install --python 3.13 tinybird-cli 2>/dev/null
         } ;;
       stripe-cli)
@@ -72,10 +72,12 @@ if [ -n "${DEVCONTAINER_TOOLS:-}" ]; then
       github-cli)
         command -v gh &>/dev/null || {
           echo "  Installing GitHub CLI..."
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null
+          curl -fsSL --proto-redir '=https' https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
           sudo apt-get update -qq && sudo apt-get install -y -qq gh && sudo rm -rf /var/lib/apt/lists/*
         } ;;
+      *)
+        echo "  Skipping unknown tool: $tool" >&2 ;;
     esac
   done
   echo "$DEVCONTAINER_TOOLS" > "$SELECTIONS_FILE"
@@ -84,14 +86,14 @@ if [ -n "${DEVCONTAINER_TOOLS:-}" ]; then
 fi
 
 # ── Guard: require TTY for interactive mode ──────────────────────────────────
-if [ ! -t 0 ]; then
+if [[ ! -t 0 ]]; then
   echo "No TTY detected. Run 'devcontainer-wizard' manually, or set DEVCONTAINER_TOOLS env var."
   exit 0
 fi
 
 # ── gum availability check ──────────────────────────────────────────────────
 if ! command -v gum &>/dev/null; then
-  echo "ERROR: gum not found. Cannot run TUI wizard."
+  echo "ERROR: gum not found. Cannot run TUI wizard." >&2
   exit 1
 fi
 
@@ -129,7 +131,7 @@ CHOICES=$(gum choose --no-limit \
   --header "AI: Claude/Forge/OpenCode/Gemini/Codex | Pkg: bun/uv | Infra: Supabase/Tinybird/Stripe/GH" \
   "${OPTIONS[@]}") || true
 
-if [ -z "$CHOICES" ]; then
+if [[ -z "$CHOICES" ]]; then
   gum style --foreground 214 "No tools selected. Re-run with: devcontainer-wizard --force"
   touch "$MARKER_FILE"
   exit 0
@@ -139,7 +141,7 @@ fi
 echo ""
 gum style --foreground "$BRAND" --bold "Selected:"
 while IFS= read -r line; do
-  [ -n "$line" ] && echo "  - $line"
+  [[ -n "$line" ]] && echo "  - $line"
 done <<< "$CHOICES"
 echo ""
 
@@ -185,11 +187,11 @@ echo ""
 gum style --foreground "$BRAND" --bold "Installing..."
 
 while IFS= read -r tool; do
-  [ -z "$tool" ] && continue
+  [[ -z "$tool" ]] && continue
   case "$tool" in
     "Claude Code")
       install_tool "Claude Code" "claude" \
-        "curl -fsSL https://claude.ai/install.sh | bash"
+        "curl -fsSL --proto-redir '=https' https://claude.ai/install.sh | bash"
       ;;
     "Gemini CLI")
       install_tool "Gemini CLI" "gemini" \
@@ -201,27 +203,27 @@ while IFS= read -r tool; do
       ;;
     "ForgeCode")
       install_tool "ForgeCode" "forge" \
-        "curl -fsSL https://forgecode.dev/cli | sh"
+        "curl -fsSL --proto-redir '=https' https://forgecode.dev/cli | sh"
       ;;
     "OpenCode")
       install_tool "OpenCode" "opencode" \
-        "curl -fsSL https://opencode.ai/install | bash"
+        "curl -fsSL --proto-redir '=https' https://opencode.ai/install | bash"
       ;;
     "bun")
       install_tool "bun" "bun" \
-        "curl -fsSL https://bun.sh/install | BUN_INSTALL=\$HOME/.bun bash && sudo ln -sf \$HOME/.bun/bin/bun /usr/local/bin/bun"
+        "curl -fsSL --proto-redir '=https' https://bun.sh/install | BUN_INSTALL=\$HOME/.bun bash && sudo ln -sf \$HOME/.bun/bin/bun /usr/local/bin/bun"
       ;;
     "uv")
       install_tool "uv" "uv" \
-        "curl -LsSf https://astral.sh/uv/install.sh | sh"
+        "curl -LsSf --proto-redir '=https' https://astral.sh/uv/install.sh | sh"
       ;;
     "Supabase CLI")
       install_tool "Supabase CLI" "supabase" \
-        'ARCH=$(uname -m); [ "$ARCH" = "aarch64" ] && ARCH="arm64"; [ "$ARCH" = "x86_64" ] && ARCH="amd64"; curl -fsSL "https://github.com/supabase/cli/releases/latest/download/supabase_linux_${ARCH}.tar.gz" -o /tmp/supabase.tar.gz && sudo tar -xzf /tmp/supabase.tar.gz -C /usr/local/bin supabase && rm /tmp/supabase.tar.gz'
+        'ARCH=$(uname -m); [ "$ARCH" = "aarch64" ] && ARCH="arm64"; [ "$ARCH" = "x86_64" ] && ARCH="amd64"; curl -fsSL --proto-redir "=https" "https://github.com/supabase/cli/releases/latest/download/supabase_linux_${ARCH}.tar.gz" -o /tmp/supabase.tar.gz && sudo tar -xzf /tmp/supabase.tar.gz -C /usr/local/bin supabase && rm /tmp/supabase.tar.gz'
       ;;
     "Tinybird CLI")
       install_tool "Tinybird CLI" "tb" \
-        'command -v uv &>/dev/null || (curl -LsSf https://astral.sh/uv/install.sh | sh); uv tool install --python 3.13 tinybird-cli'
+        'command -v uv &>/dev/null || (curl -LsSf --proto-redir "=https" https://astral.sh/uv/install.sh | sh); uv tool install --python 3.13 tinybird-cli'
       ;;
     "Stripe CLI")
       install_tool "Stripe CLI" "stripe" \
@@ -229,7 +231,10 @@ while IFS= read -r tool; do
       ;;
     "GitHub CLI")
       install_tool "GitHub CLI" "gh" \
-        'curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null && sudo apt-get update -qq && sudo apt-get install -y -qq gh && sudo rm -rf /var/lib/apt/lists/*'
+        'curl -fsSL --proto-redir "=https" https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null && sudo apt-get update -qq && sudo apt-get install -y -qq gh && sudo rm -rf /var/lib/apt/lists/*'
+      ;;
+    *)
+      echo "  Skipping unknown tool: $tool" >&2
       ;;
   esac
 done <<< "$CHOICES"

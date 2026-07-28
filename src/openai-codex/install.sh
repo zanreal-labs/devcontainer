@@ -5,8 +5,8 @@ echo "Installing OpenAI Codex..."
 
 # OpenAI Codex requires Node.js — check availability
 if ! command -v npm &>/dev/null; then
-  echo "ERROR: npm not found. Add the Node.js feature before openai-codex:"
-  echo '  "ghcr.io/devcontainers/features/node:1": { "version": "22" }'
+  echo "ERROR: npm not found. Add the Node.js feature before openai-codex:" >&2
+  echo '  "ghcr.io/devcontainers/features/node:1": { "version": "22" }' >&2
   exit 1
 fi
 
