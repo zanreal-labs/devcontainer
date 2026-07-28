@@ -211,6 +211,10 @@ RUN update-ca-certificates
 "runArgs": ["--dns", "10.0.0.1", "--dns", "1.1.1.1"]
 ```
 
+## Maintained by
+
+This image is maintained by [ZanReal](https://zanreal.com) as part of its [OSS Program](https://zanreal.com/oss).
+
 ## License
 
 MIT
